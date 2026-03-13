@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-factorio-darker text-factorio-text m-0 p-0 font-sans;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-factorio-darker;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-factorio-border rounded;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-factorio-muted;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded font-medium text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-factorio-orange text-factorio-darker hover:bg-amber-400;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-500;
+  }
+
+  .btn-secondary {
+    @apply btn bg-factorio-panel text-factorio-text border border-factorio-border hover:bg-factorio-border;
+  }
+
+  .input {
+    @apply bg-factorio-darker border border-factorio-border rounded px-3 py-2 text-factorio-text text-sm
+           focus:outline-none focus:border-factorio-orange transition-colors;
+  }
+
+  .card {
+    @apply bg-factorio-panel border border-factorio-border rounded-lg p-4;
+  }
+
+  .label {
+    @apply text-sm text-factorio-muted mb-1 block;
+  }
+}

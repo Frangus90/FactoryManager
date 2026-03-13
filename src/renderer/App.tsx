@@ -1,0 +1,35 @@
+import React from 'react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { ProfileProvider } from './context/ProfileContext';
+import Layout from './components/Layout/Layout';
+import Dashboard from './pages/Dashboard';
+import ConfigEditor from './pages/ConfigEditor';
+import SaveManager from './pages/SaveManager';
+import RconConsole from './pages/RconConsole';
+import LogViewer from './pages/LogViewer';
+import ModManager from './pages/ModManager';
+import PlayerManager from './pages/PlayerManager';
+import Settings from './pages/Settings';
+import Help from './pages/Help';
+
+export default function App() {
+  return (
+    <ProfileProvider>
+      <MemoryRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/config" element={<ConfigEditor />} />
+            <Route path="/saves" element={<SaveManager />} />
+            <Route path="/rcon" element={<RconConsole />} />
+            <Route path="/logs" element={<LogViewer />} />
+            <Route path="/mods" element={<ModManager />} />
+            <Route path="/players" element={<PlayerManager />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/help" element={<Help />} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </ProfileProvider>
+  );
+}
