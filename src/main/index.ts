@@ -1,12 +1,25 @@
 import { app, BrowserWindow } from 'electron';
 import path from 'path';
+import { spawn } from 'child_process';
 import { registerAllIpc } from './ipc';
 import { serverProcess } from './services/server-process';
 import { rconClient } from './services/rcon-client';
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require('electron-squirrel-startup')) {
-  app.quit();
+// Handle Squirrel.Windows installer events (shortcuts on install/update/uninstall).
+if (process.platform === 'win32') {
+  const squirrelArg = process.argv.find((arg) =>
+    arg.startsWith('--squirrel-'),
+  );
+  if (squirrelArg) {
+    const appFolder = path.resolve(process.execPath, '..');
+    const updateExe = path.resolve(appFolder, '..', 'Update.exe');
+    const exeName = path.basename(process.execPath);
+    spawn(updateExe, [`--${squirrelArg.split('--squirrel-')[1]}`, exeName], {
+      detached: true,
+    }).on('close', () => app.quit());
+    // Block the rest of the app from loading during installer events.
+    app.quit();
+  }
 }
 
 let mainWindow: BrowserWindow | null = null;
