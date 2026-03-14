@@ -7,16 +7,28 @@ import { resolveUserDataPath } from '../util/constants';
 const SERVER_SAVES_DIR = () =>
   path.join(app.getPath('userData'), 'server-data', 'saves');
 
+function assertWithinDir(filePath: string, allowedDir: string): void {
+  const resolved = path.resolve(filePath);
+  const resolvedDir = path.resolve(allowedDir);
+  if (!resolved.startsWith(resolvedDir + path.sep) && resolved !== resolvedDir) {
+    throw new Error('Invalid path: outside allowed directory');
+  }
+}
+
 export function registerSavesIpc(): void {
   ipcMain.handle(IPC.SAVES_LIST, async (_, savesDir: string) => {
     return listSaves(savesDir);
   });
 
   ipcMain.handle(IPC.SAVES_CREATE, async (_, name: string, factorioPath: string, savesDir?: string) => {
+    if (!/^[\w\s\-().]+$/.test(name)) {
+      throw new Error('Invalid save name: only letters, numbers, spaces, hyphens, dots, and parentheses are allowed');
+    }
     return createSave(factorioPath, name, savesDir);
   });
 
   ipcMain.handle(IPC.SAVES_DELETE, async (_, filePath: string) => {
+    assertWithinDir(filePath, SERVER_SAVES_DIR());
     return deleteSave(filePath);
   });
 
@@ -30,7 +42,7 @@ export function registerSavesIpc(): void {
     return listSaves(gameSavesDir);
   });
 
-  ipcMain.handle(IPC.SAVES_IMPORT, async (_, sourcePath: string) => {
-    return importSave(sourcePath, SERVER_SAVES_DIR());
+  ipcMain.handle(IPC.SAVES_IMPORT, async (_, sourcePath: string, overwrite?: boolean) => {
+    return importSave(sourcePath, SERVER_SAVES_DIR(), overwrite);
   });
 }

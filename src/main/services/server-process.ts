@@ -75,7 +75,9 @@ export class ServerProcessManager extends EventEmitter {
         // Detect the server becoming ready for connections.
         if (line.includes('Hosting game at')) {
           this.setStatus('running');
-          this.autoConnectRcon(profile);
+          this.autoConnectRcon(profile).catch((err) =>
+            this.emitLog('stderr', `RCON auto-connect error: ${err instanceof Error ? err.message : String(err)}`),
+          );
         }
       });
     }
@@ -145,6 +147,11 @@ export class ServerProcessManager extends EventEmitter {
       this.child.kill();
       // Give a moment for the kill signal to be processed.
       await this.waitForExit(3_000);
+    }
+
+    // Disconnect RCON since server is going down
+    if (rconClient.isConnected()) {
+      rconClient.disconnect();
     }
 
     // Ensure final state regardless of what happened above.
@@ -219,7 +226,11 @@ export class ServerProcessManager extends EventEmitter {
       const examplePath = path.join(profile.factorioPath, 'data', 'server-settings.example.json');
       let settings: Record<string, unknown>;
       if (fs.existsSync(examplePath)) {
-        settings = JSON.parse(fs.readFileSync(examplePath, 'utf-8'));
+        try {
+          settings = JSON.parse(fs.readFileSync(examplePath, 'utf-8'));
+        } catch {
+          settings = { ...DEFAULT_SERVER_SETTINGS };
+        }
       } else {
         settings = { ...DEFAULT_SERVER_SETTINGS };
       }

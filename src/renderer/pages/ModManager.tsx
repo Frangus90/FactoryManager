@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useProfile } from '../context/ProfileContext';
 import { useUserDataPath } from '../hooks/useUserDataPath';
 import { useServerStatus } from '../hooks/useServerStatus';
+import ConfirmDialog from '../components/ConfirmDialog';
 import type { ModInfo } from '../../shared/types';
 
 export default function ModManager() {
@@ -13,6 +14,7 @@ export default function ModManager() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [expandedMod, setExpandedMod] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ModInfo | null>(null);
 
   const modsDir = userDataPath ? `${userDataPath}/mods` : '';
   const isRunning = status === 'running';
@@ -47,6 +49,18 @@ export default function ModManager() {
 
   const handleExpand = (modName: string) => {
     setExpandedMod((prev) => (prev === modName ? null : modName));
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return;
+    try {
+      await window.electronAPI.mods.delete(modsDir, deleteTarget.fileName);
+      setDeleteTarget(null);
+      setExpandedMod(null);
+      await loadMods();
+    } catch (err) {
+      console.error('Failed to delete mod:', err);
+    }
   };
 
   const filteredMods = mods.filter((mod) => {
@@ -201,9 +215,21 @@ export default function ModManager() {
                           </div>
                         </div>
                       )}
-                      <div className="flex items-center gap-3 mt-2 text-xs text-factorio-muted">
-                        <span>Factorio: {mod.factorioVersion}</span>
-                        <span>File: {mod.fileName}</span>
+                      <div className="flex items-center justify-between mt-2">
+                        <div className="flex items-center gap-3 text-xs text-factorio-muted">
+                          <span>Factorio: {mod.factorioVersion}</span>
+                          <span>File: {mod.fileName}</span>
+                        </div>
+                        {!isBase && (
+                          <button
+                            className="btn-danger text-xs !px-2 !py-1"
+                            onClick={() => setDeleteTarget(mod)}
+                            disabled={isRunning}
+                            title={isRunning ? 'Stop the server before deleting mods' : ''}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </div>
                   )}
@@ -213,6 +239,16 @@ export default function ModManager() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="Delete Mod"
+        message={`Are you sure you want to delete "${deleteTarget?.title}"? This will remove the mod file permanently.`}
+        confirmLabel="Delete"
+        confirmDanger
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

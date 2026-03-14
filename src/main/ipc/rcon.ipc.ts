@@ -15,6 +15,10 @@ export function registerRconIpc(): void {
     return rconClient.execute(command);
   });
 
+  ipcMain.handle(IPC.RCON_GET_STATUS, () => {
+    return rconClient.getStatus();
+  });
+
   rconClient.on('statusChange', (status) => {
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send(IPC.RCON_STATUS_CHANGE, status);

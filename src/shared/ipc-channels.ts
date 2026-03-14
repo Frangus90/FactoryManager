@@ -24,11 +24,13 @@ export const IPC = {
   RCON_CONNECT: 'rcon:connect',
   RCON_DISCONNECT: 'rcon:disconnect',
   RCON_SEND: 'rcon:send',
+  RCON_GET_STATUS: 'rcon:getStatus',
   RCON_STATUS_CHANGE: 'rcon:statusChange',
 
   // Mod management
   MODS_LIST: 'mods:list',
   MODS_SET_ENABLED: 'mods:setEnabled',
+  MODS_DELETE: 'mods:delete',
 
   // Player management (file-based)
   PLAYERS_GET_ADMIN_LIST: 'players:getAdminList',

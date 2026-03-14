@@ -42,8 +42,8 @@ const api = {
       ipcRenderer.invoke(IPC.SAVES_GET_SERVER_DIR),
     listGameSaves: (factorioPath: string): Promise<SaveFile[]> =>
       ipcRenderer.invoke(IPC.SAVES_LIST_GAME_SAVES, factorioPath),
-    import: (sourcePath: string): Promise<string> =>
-      ipcRenderer.invoke(IPC.SAVES_IMPORT, sourcePath),
+    import: (sourcePath: string, overwrite?: boolean): Promise<string> =>
+      ipcRenderer.invoke(IPC.SAVES_IMPORT, sourcePath, overwrite),
   },
 
   rcon: {
@@ -53,6 +53,8 @@ const api = {
       ipcRenderer.invoke(IPC.RCON_DISCONNECT),
     send: (command: string): Promise<string> =>
       ipcRenderer.invoke(IPC.RCON_SEND, command),
+    getStatus: (): Promise<RconStatus> =>
+      ipcRenderer.invoke(IPC.RCON_GET_STATUS),
     onStatusChange: (cb: (status: RconStatus) => void): UnsubscribeFn =>
       onEvent(IPC.RCON_STATUS_CHANGE, cb),
   },
@@ -62,6 +64,8 @@ const api = {
       ipcRenderer.invoke(IPC.MODS_LIST, modsDir),
     setEnabled: (modsDir: string, modName: string, enabled: boolean): Promise<void> =>
       ipcRenderer.invoke(IPC.MODS_SET_ENABLED, modsDir, modName, enabled),
+    delete: (modsDir: string, fileName: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.MODS_DELETE, modsDir, fileName),
   },
 
   players: {

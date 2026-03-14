@@ -10,6 +10,8 @@ const PACKET_TYPE_RESPONSE_VALUE = 0;
 
 // Minimum packet body size: id(4) + type(4) + body null(1) + padding(1) = 10
 const MIN_PACKET_BODY_SIZE = 10;
+// Maximum allowed packet size (64 KB) to prevent memory exhaustion from malformed data
+const MAX_PACKET_SIZE = 65536;
 
 const COMMAND_TIMEOUT_MS = 10_000;
 
@@ -27,7 +29,7 @@ interface RconPacket {
 }
 
 function encodePacket(id: number, type: number, body: string): Buffer {
-  const bodyBytes = Buffer.from(body, 'ascii');
+  const bodyBytes = Buffer.from(body, 'utf-8');
   // size = id(4) + type(4) + body(N) + null terminator(1) + padding(1)
   const size = 4 + 4 + bodyBytes.length + 1 + 1;
   const packet = Buffer.alloc(4 + size);
@@ -51,14 +53,14 @@ function tryDecodePacket(buf: Buffer): { packet: RconPacket; bytesConsumed: numb
   if (buf.length < totalLength) return null;
 
   // Guard against malformed size values
-  if (size < MIN_PACKET_BODY_SIZE) return null;
+  if (size < MIN_PACKET_BODY_SIZE || size > MAX_PACKET_SIZE) return null;
 
   const id = buf.readInt32LE(4);
   const type = buf.readInt32LE(8);
 
   // Body runs from offset 12 to (totalLength - 2), excluding null terminator and padding
   const bodyEnd = totalLength - 2;
-  const body = buf.toString('ascii', 12, bodyEnd);
+  const body = buf.toString('utf-8', 12, bodyEnd);
 
   return {
     packet: { size, id, type, body },
@@ -82,6 +84,10 @@ export class RconClient extends EventEmitter {
     this.emit('statusChange', status);
   }
 
+  getStatus(): RconStatus {
+    return this.status;
+  }
+
   isConnected(): boolean {
     return this.status === 'connected';
   }
@@ -97,17 +103,28 @@ export class RconClient extends EventEmitter {
       this.recvBuf = Buffer.alloc(0);
       this.nextPacketId = 1;
 
+      // Track whether this connect promise has been settled
+      let settled = false;
+      const settle = (fn: typeof resolve | typeof reject, value?: unknown) => {
+        if (settled) return;
+        settled = true;
+        (fn as (v?: unknown) => void)(value);
+      };
+
       const socket = new net.Socket();
       this.socket = socket;
 
       const connectTimeout = setTimeout(() => {
-        reject(new Error('Connection timed out'));
+        settle(reject, new Error('Connection timed out'));
         this.cleanUp();
       }, COMMAND_TIMEOUT_MS);
 
       socket.on('connect', () => {
         clearTimeout(connectTimeout);
-        this.authenticate(password, resolve, reject);
+        this.authenticate(password,
+          () => settle(resolve),
+          (err: Error) => settle(reject, err),
+        );
       });
 
       socket.on('data', (data: Buffer) => {
@@ -118,6 +135,9 @@ export class RconClient extends EventEmitter {
         clearTimeout(connectTimeout);
         this.setStatus('error');
         this.rejectAllPending(err);
+
+        // Reject the connect promise if not yet settled (pre-connect error)
+        settle(reject, err);
 
         // If we were still authenticating, reject the auth promise
         if (this.authReject) {
@@ -131,6 +151,9 @@ export class RconClient extends EventEmitter {
         this.setStatus('disconnected');
         this.rejectAllPending(new Error('Connection closed'));
         this.socket = null;
+
+        // Reject the connect promise if not yet settled
+        settle(reject, new Error('Connection closed'));
 
         // If we were still authenticating, reject the auth promise
         if (this.authReject) {
@@ -148,6 +171,12 @@ export class RconClient extends EventEmitter {
     this.cleanUp();
   }
 
+  private getNextId(): number {
+    const id = this.nextPacketId++;
+    if (this.nextPacketId > 0x7ffffffe) this.nextPacketId = 1;
+    return id;
+  }
+
   execute(command: string): Promise<string> {
     return new Promise<string>((resolve, reject) => {
       if (!this.socket || this.status !== 'connected') {
@@ -155,7 +184,7 @@ export class RconClient extends EventEmitter {
         return;
       }
 
-      const id = this.nextPacketId++;
+      const id = this.getNextId();
       const packet = encodePacket(id, PACKET_TYPE_EXECCOMMAND, command);
 
       const timer = setTimeout(() => {
@@ -169,7 +198,7 @@ export class RconClient extends EventEmitter {
   }
 
   private authenticate(password: string, resolve: (value: void) => void, reject: (reason: Error) => void): void {
-    const id = this.nextPacketId++;
+    const id = this.getNextId();
     this.authId = id;
     this.authResolve = resolve;
     this.authReject = reject;
@@ -267,11 +296,16 @@ export class RconClient extends EventEmitter {
     }
 
     this.rejectAllPending(new Error('Connection closed'));
-    this.setStatus('disconnected');
 
+    // Reject any in-flight auth promise before clearing
+    if (this.authReject) {
+      this.authReject(new Error('Connection closed'));
+    }
     this.authId = null;
     this.authResolve = null;
     this.authReject = null;
+
+    this.setStatus('disconnected');
     this.recvBuf = Buffer.alloc(0);
   }
 }

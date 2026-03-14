@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, type MouseEvent } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import type { ServerStatus, LogEntry } from '../../shared/types';
 import StatusIndicator from '../components/StatusIndicator';
 import { useServerStatus } from '../hooks/useServerStatus';
@@ -38,6 +38,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (status === 'running' && prevStatus.current !== 'running') {
       // Server just became running - start counting
+      if (uptimeInterval.current) clearInterval(uptimeInterval.current);
       setUptime(0);
       uptimeInterval.current = setInterval(() => {
         setUptime((prev) => prev + 1);
@@ -83,13 +84,23 @@ export default function Dashboard() {
 
   const [localCopyLabel, setLocalCopyLabel] = useState('Copy');
   const [publicCopyLabel, setPublicCopyLabel] = useState('Copy');
+  const copyTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  useEffect(() => {
+    return () => copyTimers.current.forEach(clearTimeout);
+  }, []);
 
   const copyToClipboard = useCallback(async (text: string, setSetter: (v: string) => void) => {
     try {
       await navigator.clipboard.writeText(text);
       setSetter('Copied!');
-      setTimeout(() => setSetter('Copy'), 2000);
-    } catch { /* noop */ }
+      const t = setTimeout(() => setSetter('Copy'), 2000);
+      copyTimers.current.push(t);
+    } catch {
+      setSetter('Failed');
+      const t = setTimeout(() => setSetter('Copy'), 2000);
+      copyTimers.current.push(t);
+    }
   }, []);
 
   // ---- Recent logs (last 20) ----
@@ -100,15 +111,45 @@ export default function Dashboard() {
     logEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [recentLogs.length]);
 
+  // ---- Error toast ----
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(null), 5000);
+    return () => clearTimeout(t);
+  }, [error]);
+
   // ---- Handlers ----
   const handleStart = useCallback(async () => {
     if (!activeProfile) return;
-    await start(activeProfile.id);
+    try {
+      await start(activeProfile.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start server');
+    }
   }, [activeProfile, start]);
 
   const handleStop = useCallback(async () => {
-    await stop();
+    try {
+      await stop();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to stop server');
+    }
   }, [stop]);
+
+  const [restarting, setRestarting] = useState(false);
+  const handleRestart = useCallback(async () => {
+    if (!activeProfile) return;
+    setRestarting(true);
+    try {
+      await stop();
+      await start(activeProfile.id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to restart server');
+    } finally {
+      setRestarting(false);
+    }
+  }, [activeProfile, stop, start]);
 
   // ---- Copy logs to clipboard ----
   const [copyLabel, setCopyLabel] = useState('Copy');
@@ -119,12 +160,18 @@ export default function Dashboard() {
     try {
       await navigator.clipboard.writeText(text);
       setCopyLabel('Copied!');
-      setTimeout(() => setCopyLabel('Copy'), 2000);
-    } catch { /* noop */ }
+      const t = setTimeout(() => setCopyLabel('Copy'), 2000);
+      copyTimers.current.push(t);
+    } catch {
+      setCopyLabel('Failed');
+      const t = setTimeout(() => setCopyLabel('Copy'), 2000);
+      copyTimers.current.push(t);
+    }
   }, [recentLogs]);
 
-  const isStartDisabled = !activeProfile || status === 'running' || status === 'starting' || status === 'stopping';
-  const isStopDisabled = status === 'stopped' || status === 'stopping' || status === 'errored';
+  const isStartDisabled = !activeProfile || status === 'running' || status === 'starting' || status === 'stopping' || restarting;
+  const isStopDisabled = status === 'stopped' || status === 'stopping' || status === 'errored' || restarting;
+  const isRestartDisabled = status !== 'running' || restarting;
 
   // ---- No profile warning ----
   if (!activeProfile) {
@@ -160,6 +207,14 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Error toast */}
+      {error && (
+        <div className="px-4 py-2 rounded bg-red-900/60 border border-red-700 text-red-300 text-sm flex items-center justify-between">
+          <span>{error}</span>
+          <button className="text-red-400 hover:text-red-200 ml-4" onClick={() => setError(null)}>&times;</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-factorio-text">Dashboard</h2>
@@ -186,6 +241,13 @@ export default function Dashboard() {
               onClick={handleStart}
             >
               Start Server
+            </button>
+            <button
+              className="btn-secondary"
+              disabled={isRestartDisabled}
+              onClick={handleRestart}
+            >
+              {restarting ? 'Restarting...' : 'Restart'}
             </button>
             <button
               className="btn-danger"
@@ -250,14 +312,16 @@ export default function Dashboard() {
             <span className="label">Profile Name</span>
             <p className="text-factorio-text font-medium">{activeProfile.name}</p>
           </div>
-          <div>
+          <div className="min-w-0">
             <span className="label">Selected Save</span>
-            <p className="text-factorio-text font-medium">
-              {activeProfile.selectedSave ?? (
-                <span className="text-factorio-muted italic">
-                  {activeProfile.useLatestSave ? 'Latest save' : 'None selected'}
-                </span>
-              )}
+            <p className="text-factorio-text font-medium truncate">
+              {activeProfile.selectedSave
+                ? activeProfile.selectedSave.replace(/^.*[\\/]/, '').replace(/\.zip$/, '')
+                : (
+                  <span className="text-factorio-muted italic">
+                    {activeProfile.useLatestSave ? 'Latest save' : 'None selected'}
+                  </span>
+                )}
             </p>
           </div>
           <div>

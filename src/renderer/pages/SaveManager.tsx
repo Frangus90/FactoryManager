@@ -33,6 +33,9 @@ export default function SaveManager() {
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<SaveFile | null>(null);
 
+  // Overwrite confirmation for imports
+  const [overwriteTarget, setOverwriteTarget] = useState<SaveFile | null>(null);
+
   // Fetch the server saves directory path once
   useEffect(() => {
     window.electronAPI.saves.getServerDir().then(setServerSavesDir).catch(() => {});
@@ -133,16 +136,27 @@ export default function SaveManager() {
     }
   };
 
-  const handleImport = async (save: SaveFile) => {
+  const handleImport = async (save: SaveFile, overwrite = false) => {
     setImportingFile(save.filePath);
     try {
-      await window.electronAPI.saves.import(save.filePath);
+      await window.electronAPI.saves.import(save.filePath, overwrite);
       await loadServerSaves();
-    } catch (err) {
-      console.error('Failed to import save:', err);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (message.includes('already exists')) {
+        setOverwriteTarget(save);
+      } else {
+        console.error('Failed to import save:', err);
+      }
     } finally {
       setImportingFile(null);
     }
+  };
+
+  const handleOverwriteConfirm = async () => {
+    if (!overwriteTarget) return;
+    setOverwriteTarget(null);
+    await handleImport(overwriteTarget, true);
   };
 
   if (!activeProfile) {
@@ -350,6 +364,17 @@ export default function SaveManager() {
         confirmDanger
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* Overwrite confirmation dialog */}
+      <ConfirmDialog
+        open={overwriteTarget !== null}
+        title="Overwrite Save"
+        message={`A server save named "${overwriteTarget?.fileName}" already exists. Overwrite it?`}
+        confirmLabel="Overwrite"
+        confirmDanger
+        onConfirm={handleOverwriteConfirm}
+        onCancel={() => setOverwriteTarget(null)}
       />
     </div>
   );

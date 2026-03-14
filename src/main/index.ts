@@ -60,18 +60,24 @@ app.on('ready', () => {
   createWindow();
 });
 
-app.on('window-all-closed', async () => {
-  // If server is running, stop it before quitting
-  if (serverProcess.getStatus() === 'running' || serverProcess.getStatus() === 'starting') {
-    try {
-      await serverProcess.stop();
-    } catch {
-      // Force quit even if stop fails
-    }
+let isQuitting = false;
+app.on('window-all-closed', () => {
+  if (isQuitting) return;
+
+  const serverStatus = serverProcess.getStatus();
+  if (serverStatus === 'running' || serverStatus === 'starting') {
+    isQuitting = true;
+    serverProcess
+      .stop()
+      .catch(() => {})
+      .finally(() => {
+        if (rconClient.isConnected()) rconClient.disconnect();
+        app.quit();
+      });
+    return;
   }
-  if (rconClient.isConnected()) {
-    rconClient.disconnect();
-  }
+
+  if (rconClient.isConnected()) rconClient.disconnect();
   app.quit();
 });
 

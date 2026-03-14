@@ -1,5 +1,6 @@
 import { ipcMain, BrowserWindow } from 'electron';
 import { IPC } from '../../shared/ipc-channels';
+import type { LogEntry } from '../../shared/types';
 import { serverProcess } from '../services/server-process';
 import * as profileStore from '../services/profile-store';
 
@@ -25,9 +26,26 @@ export function registerServerIpc(): void {
     }
   });
 
-  serverProcess.on('log', (entry) => {
+  // Batch log entries to reduce IPC overhead during heavy logging
+  let logBuffer: LogEntry[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+  const flushLogs = () => {
+    flushTimer = null;
+    if (logBuffer.length === 0) return;
+    const batch = logBuffer;
+    logBuffer = [];
     for (const win of BrowserWindow.getAllWindows()) {
-      win.webContents.send(IPC.SERVER_LOG, entry);
+      for (const entry of batch) {
+        win.webContents.send(IPC.SERVER_LOG, entry);
+      }
+    }
+  };
+
+  serverProcess.on('log', (entry: LogEntry) => {
+    logBuffer.push(entry);
+    if (!flushTimer) {
+      flushTimer = setTimeout(flushLogs, 100);
     }
   });
 }

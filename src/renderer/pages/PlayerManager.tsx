@@ -152,7 +152,7 @@ export default function PlayerManager() {
   // ------ Admin actions ------
   const handleAddAdmin = async () => {
     const name = newAdmin.trim();
-    if (!name) return;
+    if (!name || admins.includes(name)) return;
     const updatedAdmins = [...admins, name];
     try {
       await window.electronAPI.players.setAdminList(getAdminPath(), updatedAdmins);
@@ -182,7 +182,7 @@ export default function PlayerManager() {
   // ------ Ban actions ------
   const handleBan = async () => {
     const name = banUsername.trim();
-    if (!name) return;
+    if (!name || bans.some((b) => b.username === name)) return;
     const entry: BanEntry = { username: name, reason: banReason.trim() || undefined };
     const updatedBans = [...bans, entry];
     try {
@@ -217,7 +217,7 @@ export default function PlayerManager() {
   // ------ Whitelist actions ------
   const handleAddWhitelist = async () => {
     const name = newWhitelist.trim();
-    if (!name) return;
+    if (!name || whitelist.includes(name)) return;
     const updatedList = [...whitelist, name];
     try {
       await window.electronAPI.players.setWhitelist(getWhitelistPath(), updatedList);

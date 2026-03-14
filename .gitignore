@@ -93,3 +93,6 @@ out/
 
 # Claude Code
 .claude/
+
+# Planning docs
+plan/

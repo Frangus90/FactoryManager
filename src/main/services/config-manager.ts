@@ -6,8 +6,11 @@ export async function readServerSettings(filePath: string): Promise<ServerSettin
   try {
     const raw = await fs.readFile(filePath, 'utf-8');
     const parsed = JSON.parse(raw);
-    // Merge with defaults to fill any missing fields
-    return { ...DEFAULT_SERVER_SETTINGS, ...parsed };
+    return {
+      ...DEFAULT_SERVER_SETTINGS,
+      ...parsed,
+      visibility: { ...DEFAULT_SERVER_SETTINGS.visibility, ...parsed.visibility },
+    };
   } catch (err: unknown) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       return { ...DEFAULT_SERVER_SETTINGS };

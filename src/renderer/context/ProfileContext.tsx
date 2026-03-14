@@ -50,7 +50,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
 
   const setActiveProfile = useCallback((profile: ServerProfile) => {
     setActiveProfileState(profile);
-    window.electronAPI.profiles.setActiveId(profile.id);
+    window.electronAPI.profiles.setActiveId(profile.id).catch(() => {});
   }, []);
 
   if (!initialized) return null;

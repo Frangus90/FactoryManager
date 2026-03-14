@@ -38,7 +38,8 @@ export async function readBanList(filePath: string): Promise<BanEntry[]> {
 }
 
 export async function writeBanList(filePath: string, entries: BanEntry[]): Promise<void> {
-  // Factorio expects a simple array of strings for server-banlist.json
-  const names = entries.map((e) => e.username);
-  await fs.writeFile(filePath, JSON.stringify(names, null, 2), 'utf-8');
+  const data = entries.map((e) =>
+    e.reason ? { username: e.username, reason: e.reason } : { username: e.username },
+  );
+  await fs.writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8');
 }

@@ -1,7 +1,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { spawn } from 'child_process';
-import { shell } from 'electron';
+import { app, shell } from 'electron';
 import type { SaveFile } from '../../shared/types';
 import { FACTORIO_EXE_RELATIVE, SAVES_DIR } from '../util/constants';
 
@@ -44,8 +44,10 @@ export async function createSave(factorioPath: string, saveName: string, savesDi
   const targetDir = savesDir || path.join(factorioPath, SAVES_DIR);
   const savePath = path.join(targetDir, `${saveName}.zip`);
 
+  const configPath = path.join(app.getPath('userData'), 'server-data', 'config.ini');
+
   return new Promise<void>((resolve, reject) => {
-    const child = spawn(exePath, ['--create', savePath], {
+    const child = spawn(exePath, ['--config', configPath, '--create', savePath], {
       cwd: factorioPath,
       windowsHide: true,
     });
@@ -73,10 +75,21 @@ export async function deleteSave(filePath: string): Promise<void> {
   await shell.trashItem(filePath);
 }
 
-export async function importSave(sourcePath: string, destDir: string): Promise<string> {
+export async function importSave(sourcePath: string, destDir: string, overwrite = false): Promise<string> {
   await fs.mkdir(destDir, { recursive: true });
   const fileName = path.basename(sourcePath);
   const destPath = path.join(destDir, fileName);
+
+  if (!overwrite) {
+    try {
+      await fs.access(destPath);
+      throw Object.assign(new Error(`Save "${fileName}" already exists`), { code: 'EEXIST' });
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw err;
+      // ENOENT = file doesn't exist, safe to proceed
+    }
+  }
+
   await fs.copyFile(sourcePath, destPath);
   return destPath;
 }

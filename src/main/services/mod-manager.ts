@@ -127,3 +127,17 @@ export async function setModEnabled(modsDir: string, modName: string, enabled: b
 
   await fs.writeFile(modListPath, JSON.stringify(data, null, 2), 'utf-8');
 }
+
+export async function deleteMod(modsDir: string, fileName: string): Promise<void> {
+  const resolvedDir = path.resolve(modsDir);
+  const fullPath = path.resolve(modsDir, fileName);
+  if (!fullPath.startsWith(resolvedDir + path.sep)) {
+    throw new Error('Invalid file name: path traversal detected');
+  }
+  const stat = await fs.stat(fullPath);
+  if (stat.isDirectory()) {
+    await fs.rm(fullPath, { recursive: true });
+  } else {
+    await fs.unlink(fullPath);
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback, type MouseEvent } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import type { LogEntry } from '../../shared/types';
 import { useLogs } from '../hooks/useLogs';
 
@@ -40,9 +40,10 @@ export default function LogViewer() {
     const el = scrollContainerRef.current;
     const isAtBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 32;
 
-    // Only auto-resume when user scrolls back to the bottom
     if (isAtBottom && !autoScroll) {
       setAutoScroll(true);
+    } else if (!isAtBottom && autoScroll) {
+      setAutoScroll(false);
     }
   }, [autoScroll]);
 
