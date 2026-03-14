@@ -3,6 +3,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import ErrorBoundary from './components/ErrorBoundary';
 import { ProfileProvider } from './context/ProfileContext';
 import { RconProvider } from './context/RconContext';
+import { ServerProvider } from './context/ServerContext';
 import Layout from './components/Layout/Layout';
 import Dashboard from './pages/Dashboard';
 import ConfigEditor from './pages/ConfigEditor';
@@ -17,6 +18,7 @@ import Help from './pages/Help';
 export default function App() {
   return (
     <ErrorBoundary>
+    <ServerProvider>
     <ProfileProvider>
     <RconProvider>
       <MemoryRouter>
@@ -36,6 +38,7 @@ export default function App() {
       </MemoryRouter>
     </RconProvider>
     </ProfileProvider>
+    </ServerProvider>
     </ErrorBoundary>
   );
 }

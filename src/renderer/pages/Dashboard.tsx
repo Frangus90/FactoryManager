@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { ServerStatus, LogEntry } from '../../shared/types';
+import type { LogEntry } from '../../shared/types';
 import StatusIndicator from '../components/StatusIndicator';
 import { useServerStatus } from '../hooks/useServerStatus';
 import { useProfile } from '../context/ProfileContext';
 import { useLogs } from '../hooks/useLogs';
+import { useServerContext } from '../context/ServerContext';
 
 function formatUptime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
@@ -29,45 +30,23 @@ export default function Dashboard() {
   const { status, start, stop } = useServerStatus();
   const { activeProfile } = useProfile();
   const { logs } = useLogs();
+  const { startedAt } = useServerContext();
 
-  // ---- Uptime tracking ----
+  // ---- Uptime display (re-renders every second while running) ----
   const [uptime, setUptime] = useState(0);
-  const uptimeInterval = useRef<ReturnType<typeof setInterval> | null>(null);
-  const prevStatus = useRef<ServerStatus>(status);
 
   useEffect(() => {
-    if (status === 'running' && prevStatus.current !== 'running') {
-      // Server just became running - start counting
-      if (uptimeInterval.current) clearInterval(uptimeInterval.current);
+    if (!startedAt) {
       setUptime(0);
-      uptimeInterval.current = setInterval(() => {
-        setUptime((prev) => prev + 1);
-      }, 1000);
+      return;
     }
-
-    if (status === 'stopped' || status === 'errored') {
-      // Server stopped - reset uptime
-      if (uptimeInterval.current) {
-        clearInterval(uptimeInterval.current);
-        uptimeInterval.current = null;
-      }
-      setUptime(0);
-    }
-
-    if (status === 'stopping' && uptimeInterval.current) {
-      // Server is stopping - freeze counter but don't reset yet
-      clearInterval(uptimeInterval.current);
-      uptimeInterval.current = null;
-    }
-
-    prevStatus.current = status;
-
-    return () => {
-      if (uptimeInterval.current) {
-        clearInterval(uptimeInterval.current);
-      }
-    };
-  }, [status]);
+    // Immediately compute current uptime
+    setUptime(Math.floor((Date.now() - startedAt) / 1000));
+    const id = setInterval(() => {
+      setUptime(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [startedAt]);
 
   // ---- IPs for the server address card ----
   const [localIp, setLocalIp] = useState<string | null>(null);
