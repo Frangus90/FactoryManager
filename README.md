@@ -25,10 +25,6 @@ Styled to match Factorio's native UI.
 - Backup system with create/restore/delete
 - Auto-backup before server start with configurable max backups
 
-### Mod Manager
-- List installed mods with enable/disable toggles
-- Delete mods
-- Search/filter installed mods
 
 ### Configuration
 - Server settings editor (GUI for `server-settings.json`)
