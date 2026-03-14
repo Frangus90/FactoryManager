@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProfile } from '../context/ProfileContext';
 import ConfirmDialog from '../components/ConfirmDialog';
-import type { SaveFile } from '../../shared/types';
+import type { SaveFile, BackupEntry } from '../../shared/types';
 
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -35,6 +35,12 @@ export default function SaveManager() {
 
   // Overwrite confirmation for imports
   const [overwriteTarget, setOverwriteTarget] = useState<SaveFile | null>(null);
+
+  // Backups
+  const [backups, setBackups] = useState<BackupEntry[]>([]);
+  const [creatingBackup, setCreatingBackup] = useState(false);
+  const [restoreTarget, setRestoreTarget] = useState<BackupEntry | null>(null);
+  const [deleteBackupTarget, setDeleteBackupTarget] = useState<BackupEntry | null>(null);
 
   // Fetch the server saves directory path once
   useEffect(() => {
@@ -81,10 +87,24 @@ export default function SaveManager() {
     loadGameSaves();
   }, [loadGameSaves]);
 
+  const loadBackups = useCallback(async () => {
+    try {
+      const list = await window.electronAPI.backups.list();
+      setBackups(list);
+    } catch {
+      setBackups([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadBackups();
+  }, [loadBackups]);
+
   const handleRefresh = useCallback(() => {
     loadServerSaves();
     loadGameSaves();
-  }, [loadServerSaves, loadGameSaves]);
+    loadBackups();
+  }, [loadServerSaves, loadGameSaves, loadBackups]);
 
   const handleSelect = async (save: SaveFile) => {
     if (!activeProfile) return;
@@ -355,6 +375,73 @@ export default function SaveManager() {
         </div>
       </div>
 
+      {/* Backups section */}
+      <div className="card mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-factorio-orange uppercase tracking-wide">
+            Backups
+          </h3>
+          <button
+            className="btn-secondary text-xs"
+            onClick={async () => {
+              setCreatingBackup(true);
+              try {
+                await window.electronAPI.backups.create();
+                await loadBackups();
+              } catch (err) {
+                console.error('Failed to create backup:', err);
+              } finally {
+                setCreatingBackup(false);
+              }
+            }}
+            disabled={creatingBackup}
+          >
+            {creatingBackup ? 'Creating...' : 'Create Backup'}
+          </button>
+        </div>
+        {backups.length === 0 ? (
+          <p className="text-factorio-muted text-sm py-2">No backups yet.</p>
+        ) : (
+          <div className="border border-factorio-border overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-factorio-dark border-b border-factorio-border">
+                  <th className="text-left px-4 py-2 text-factorio-muted font-medium">Date</th>
+                  <th className="text-right px-4 py-2 text-factorio-muted font-medium">Saves</th>
+                  <th className="text-right px-4 py-2 text-factorio-muted font-medium">Size</th>
+                  <th className="text-right px-4 py-2 text-factorio-muted font-medium">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {backups.map((backup) => (
+                  <tr key={backup.id} className="border-b border-factorio-border/50 hover:bg-factorio-panel/50">
+                    <td className="px-4 py-2.5 text-factorio-text">{formatDate(backup.timestamp)}</td>
+                    <td className="px-4 py-2.5 text-right text-factorio-muted">{backup.saveCount}</td>
+                    <td className="px-4 py-2.5 text-right text-factorio-muted">{formatFileSize(backup.totalSizeBytes)}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <button
+                          className="btn-secondary text-xs !px-2 !py-1"
+                          onClick={() => setRestoreTarget(backup)}
+                        >
+                          Restore
+                        </button>
+                        <button
+                          className="btn-danger text-xs !px-2 !py-1"
+                          onClick={() => setDeleteBackupTarget(backup)}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       {/* Delete confirmation dialog */}
       <ConfirmDialog
         open={deleteTarget !== null}
@@ -375,6 +462,46 @@ export default function SaveManager() {
         confirmDanger
         onConfirm={handleOverwriteConfirm}
         onCancel={() => setOverwriteTarget(null)}
+      />
+
+      {/* Restore backup confirmation */}
+      <ConfirmDialog
+        open={restoreTarget !== null}
+        title="Restore Backup"
+        message={`Restore backup from ${restoreTarget ? formatDate(restoreTarget.timestamp) : ''}? This will overwrite matching save files in the server saves directory.`}
+        confirmLabel="Restore"
+        confirmDanger
+        onConfirm={async () => {
+          if (!restoreTarget) return;
+          try {
+            await window.electronAPI.backups.restore(restoreTarget.path);
+            setRestoreTarget(null);
+            await loadServerSaves();
+          } catch (err) {
+            console.error('Failed to restore backup:', err);
+          }
+        }}
+        onCancel={() => setRestoreTarget(null)}
+      />
+
+      {/* Delete backup confirmation */}
+      <ConfirmDialog
+        open={deleteBackupTarget !== null}
+        title="Delete Backup"
+        message={`Delete backup from ${deleteBackupTarget ? formatDate(deleteBackupTarget.timestamp) : ''}? This cannot be undone.`}
+        confirmLabel="Delete"
+        confirmDanger
+        onConfirm={async () => {
+          if (!deleteBackupTarget) return;
+          try {
+            await window.electronAPI.backups.delete(deleteBackupTarget.path);
+            setDeleteBackupTarget(null);
+            await loadBackups();
+          } catch (err) {
+            console.error('Failed to delete backup:', err);
+          }
+        }}
+        onCancel={() => setDeleteBackupTarget(null)}
       />
     </div>
   );

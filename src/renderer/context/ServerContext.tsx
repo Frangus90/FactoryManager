@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import type { ServerStatus, LogEntry } from '../../shared/types';
+import type { ServerStatus, LogEntry, AutoRestartInfo, ServerEvent, ServerStats } from '../../shared/types';
 
 const MAX_LOG_LINES = 10000;
+const MAX_EVENTS = 200;
 
 interface ServerContextValue {
   status: ServerStatus;
@@ -10,6 +11,9 @@ interface ServerContextValue {
   start: (profileId: string) => Promise<void>;
   stop: () => Promise<void>;
   startedAt: number | null;
+  autoRestartInfo: AutoRestartInfo | null;
+  events: ServerEvent[];
+  stats: ServerStats | null;
 }
 
 const ServerContext = createContext<ServerContextValue | null>(null);
@@ -19,6 +23,10 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const logsRef = useRef<LogEntry[]>([]);
   const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [autoRestartInfo, setAutoRestartInfo] = useState<AutoRestartInfo | null>(null);
+  const [events, setEvents] = useState<ServerEvent[]>([]);
+  const eventsRef = useRef<ServerEvent[]>([]);
+  const [stats, setStats] = useState<ServerStats | null>(null);
   const prevStatus = useRef<ServerStatus>('stopped');
   const initialized = useRef(false);
 
@@ -51,6 +59,46 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     }
     prevStatus.current = status;
   }, [status]);
+
+  // Subscribe to auto-restart events
+  useEffect(() => {
+    const unsub = window.electronAPI.server.onAutoRestart((info) => {
+      setAutoRestartInfo(info);
+    });
+    return unsub;
+  }, []);
+
+  // Subscribe to server events (join/leave/chat)
+  useEffect(() => {
+    let rafId: number | null = null;
+
+    const unsub = window.electronAPI.server.onEvent((event) => {
+      const arr = eventsRef.current;
+      arr.push(event);
+      if (arr.length > MAX_EVENTS) {
+        eventsRef.current = arr.slice(-MAX_EVENTS);
+      }
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          setEvents([...eventsRef.current]);
+        });
+      }
+    });
+
+    return () => {
+      unsub();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, []);
+
+  // Subscribe to server stats
+  useEffect(() => {
+    const unsub = window.electronAPI.server.onStats((s) => {
+      setStats(s);
+    });
+    return unsub;
+  }, []);
 
   // Subscribe to log events — persists across route changes
   useEffect(() => {
@@ -92,7 +140,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <ServerContext.Provider value={{ status, logs, clearLogs, start, stop, startedAt }}>
+    <ServerContext.Provider value={{ status, logs, clearLogs, start, stop, startedAt, autoRestartInfo, events, stats }}>
       {children}
     </ServerContext.Provider>
   );

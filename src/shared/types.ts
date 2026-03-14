@@ -25,6 +25,15 @@ export interface ServerProfile {
   adminListPath: string | null;
   banListPath: string | null;
   whitelistPath: string | null;
+  autoRestart: boolean;
+  restartSchedule: RestartSchedule;
+  scheduledCommands: ScheduledCommand[];
+}
+
+export interface AutoRestartInfo {
+  remainingSeconds: number;
+  attempt: number;
+  maxAttempts: number;
 }
 
 // ---- Server Settings (server-settings.json) ----
@@ -85,6 +94,132 @@ export interface ModInfo {
   factorioVersion: string;
   fileName: string;
   dependencies: string[];
+}
+
+// ---- App Settings ----
+
+export interface AppSettings {
+  closeToTray: boolean;
+  autoStartServer: boolean;
+  notificationsEnabled: boolean;
+  notifyOnStart: boolean;
+  notifyOnStop: boolean;
+  notifyOnCrash: boolean;
+  notifyOnPlayerJoin: boolean;
+  backupEnabled: boolean;
+  backupBeforeStart: boolean;
+  maxBackups: number;
+  backupDir: string | null;
+  upnpEnabled: boolean;
+}
+
+// ---- Restart Schedule ----
+
+export interface RestartSchedule {
+  type: 'off' | 'interval' | 'daily';
+  intervalHours: number;
+  dailyTime: string; // HH:MM format
+}
+
+// ---- Server Events ----
+
+export interface ServerEvent {
+  type: 'join' | 'leave' | 'chat';
+  player: string;
+  message?: string;
+  timestamp: number;
+}
+
+// ---- Server Stats ----
+
+export interface ServerStats {
+  cpuPercent: number;
+  memoryMb: number;
+  ups: number | null;
+}
+
+// ---- Backups ----
+
+export interface BackupEntry {
+  id: string;
+  timestamp: number;
+  path: string;
+  saveCount: number;
+  totalSizeBytes: number;
+}
+
+// ---- Command Scheduler ----
+
+export interface ScheduledCommand {
+  id: string;
+  command: string;
+  intervalMinutes: number;
+  enabled: boolean;
+  label: string;
+}
+
+// ---- UPnP ----
+
+export type UpnpStatus = 'idle' | 'mapping' | 'mapped' | 'error';
+
+// ---- Map Settings ----
+
+export interface MapPollutionSettings {
+  enabled: boolean;
+  diffusion_ratio: number;
+  min_pollution_to_damage_trees: number;
+  ageing: number;
+  expected_max_per_chunk: number;
+}
+
+export interface MapEnemyEvolutionSettings {
+  enabled: boolean;
+  time_factor: number;
+  destroy_factor: number;
+  pollution_factor: number;
+}
+
+export interface MapEnemyExpansionSettings {
+  enabled: boolean;
+  max_expansion_distance: number;
+  settler_group_min_size: number;
+  settler_group_max_size: number;
+  min_expansion_cooldown: number;
+  max_expansion_cooldown: number;
+}
+
+export interface MapSettings {
+  difficulty_settings: {
+    recipe_difficulty: number;
+    technology_difficulty: number;
+    technology_price_multiplier: number;
+    research_queue_setting: string;
+  };
+  pollution: MapPollutionSettings;
+  enemy_evolution: MapEnemyEvolutionSettings;
+  enemy_expansion: MapEnemyExpansionSettings;
+  [key: string]: unknown;
+}
+
+export interface MapGenSettings {
+  seed: number | null;
+  width: number;
+  height: number;
+  starting_area: number;
+  water: number | string;
+  terrain_segmentation: number | string;
+  cliff_settings: {
+    name: string;
+    cliff_elevation_0: number;
+    cliff_elevation_interval: number;
+    richness: number;
+  };
+  autoplace_controls: Record<string, {
+    frequency: number | string;
+    size: number | string;
+    richness: number | string;
+  }>;
+  [key: string]: unknown;
 }
 
 // ---- Players ----

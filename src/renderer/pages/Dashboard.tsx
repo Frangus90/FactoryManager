@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import type { LogEntry } from '../../shared/types';
+import type { LogEntry, UpnpStatus } from '../../shared/types';
 import StatusIndicator from '../components/StatusIndicator';
 import { useServerStatus } from '../hooks/useServerStatus';
 import { useProfile } from '../context/ProfileContext';
@@ -30,7 +30,7 @@ export default function Dashboard() {
   const { status, start, stop } = useServerStatus();
   const { activeProfile } = useProfile();
   const { logs } = useLogs();
-  const { startedAt } = useServerContext();
+  const { startedAt, autoRestartInfo, events, stats } = useServerContext();
 
   // ---- Uptime display (re-renders every second while running) ----
   const [uptime, setUptime] = useState(0);
@@ -48,13 +48,33 @@ export default function Dashboard() {
     return () => clearInterval(id);
   }, [startedAt]);
 
+  // ---- Factorio version ----
+  const [factorioVersion, setFactorioVersion] = useState<string | null>(null);
+  const [latestVersions, setLatestVersions] = useState<{ stable: string; experimental: string } | null>(null);
+
+  useEffect(() => {
+    if (!activeProfile) { setFactorioVersion(null); return; }
+    window.electronAPI.util.getFactorioVersion(activeProfile.factorioPath)
+      .then(setFactorioVersion)
+      .catch(() => setFactorioVersion(null));
+  }, [activeProfile?.factorioPath]);
+
+  useEffect(() => {
+    window.electronAPI.util.checkUpdates()
+      .then(setLatestVersions)
+      .catch(() => setLatestVersions(null));
+  }, []);
+
   // ---- IPs for the server address card ----
   const [localIp, setLocalIp] = useState<string | null>(null);
   const [publicIp, setPublicIp] = useState<string | null>(null);
+  const [upnpStatus, setUpnpStatus] = useState<UpnpStatus>('idle');
 
   useEffect(() => {
     window.electronAPI.util.getLocalIp().then(setLocalIp).catch(() => setLocalIp(null));
     window.electronAPI.util.getPublicIp().then(setPublicIp).catch(() => setPublicIp(null));
+    window.electronAPI.upnp.getStatus().then(setUpnpStatus).catch(() => {});
+    return window.electronAPI.upnp.onStatusChange(setUpnpStatus);
   }, []);
 
   const port = activeProfile?.serverPort;
@@ -194,6 +214,14 @@ export default function Dashboard() {
         </div>
       )}
 
+      {/* Auto-restart banner */}
+      {autoRestartInfo && (
+        <div className="bg-yellow-900/50 border border-yellow-600 px-4 py-3 text-yellow-200 text-sm">
+          Auto-restarting in {autoRestartInfo.remainingSeconds}s
+          (attempt {autoRestartInfo.attempt}/{autoRestartInfo.maxAttempts})
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-factorio-text">Dashboard</h2>
@@ -273,11 +301,72 @@ export default function Dashboard() {
               )}
             </div>
           </div>
-          <p className="text-xs text-factorio-muted mt-3">
-            Share the <strong>local</strong> address with friends on your LAN. For
-            internet play, share the <strong>public</strong> address and make sure
-            UDP port {activeProfile.serverPort} is forwarded on your router.
-          </p>
+          <div className="flex items-center justify-between mt-3">
+            <p className="text-xs text-factorio-muted">
+              Share the <strong>local</strong> address with friends on your LAN. For
+              internet play, share the <strong>public</strong> address and make sure
+              UDP port {activeProfile.serverPort} is forwarded on your router.
+            </p>
+            {upnpStatus !== 'idle' && (
+              <span className={`text-xs font-medium shrink-0 ml-4 ${
+                upnpStatus === 'mapped' ? 'text-green-400' :
+                upnpStatus === 'mapping' ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>
+                UPnP: {upnpStatus === 'mapped' ? 'Port forwarded' : upnpStatus === 'mapping' ? 'Mapping...' : 'Error'}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Server Resources — shown when running */}
+      {status === 'running' && stats && (stats.cpuPercent > 0 || stats.memoryMb > 0) && (
+        <div className="card">
+          <h3 className="text-sm font-semibold text-factorio-orange mb-3 uppercase tracking-wide">
+            Server Resources
+          </h3>
+          <div className="grid grid-cols-3 gap-4">
+            <div>
+              <span className="label">CPU</span>
+              <p className="text-factorio-text font-mono text-lg">{stats.cpuPercent.toFixed(1)}%</p>
+            </div>
+            <div>
+              <span className="label">Memory</span>
+              <p className="text-factorio-text font-mono text-lg">{stats.memoryMb} MB</p>
+            </div>
+            <div>
+              <span className="label">UPS</span>
+              <p className="text-factorio-text font-mono text-lg">
+                {stats.ups !== null ? stats.ups : '--'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Activity Feed — shown when there are events */}
+      {events.length > 0 && (
+        <div className="card">
+          <h3 className="text-sm font-semibold text-factorio-orange mb-3 uppercase tracking-wide">
+            Activity Feed
+          </h3>
+          <div className="bg-factorio-darker border border-factorio-border p-3 h-48 overflow-y-auto font-mono text-xs leading-relaxed">
+            {events.slice(-20).map((ev, i) => (
+              <div key={i} className="flex gap-2">
+                <span className="text-factorio-muted shrink-0 select-none">
+                  {formatTimestamp(ev.timestamp)}
+                </span>
+                <span className={
+                  ev.type === 'join' ? 'text-green-400' :
+                  ev.type === 'leave' ? 'text-red-400' :
+                  'text-factorio-text'
+                }>
+                  [{ev.type.toUpperCase()}] {ev.player}{ev.message ? `: ${ev.message}` : ''}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -289,7 +378,14 @@ export default function Dashboard() {
         <div className="grid grid-cols-3 gap-4">
           <div>
             <span className="label">Profile Name</span>
-            <p className="text-factorio-text font-medium">{activeProfile.name}</p>
+            <p className="text-factorio-text font-medium">
+              {activeProfile.name}
+              {factorioVersion && (
+                <span className="text-factorio-muted text-xs font-normal ml-2">
+                  Factorio {factorioVersion}
+                </span>
+              )}
+            </p>
           </div>
           <div className="min-w-0">
             <span className="label">Selected Save</span>
@@ -308,6 +404,18 @@ export default function Dashboard() {
             <p className="text-factorio-text font-medium">{activeProfile.rconPort}</p>
           </div>
         </div>
+
+        {/* Update available notice */}
+        {factorioVersion && latestVersions && latestVersions.stable && factorioVersion !== latestVersions.stable && (
+          <div className="mt-3 flex items-center gap-2 text-factorio-orange text-sm">
+            <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>
+              Factorio update available: <strong>{latestVersions.stable}</strong> (you have {factorioVersion})
+            </span>
+          </div>
+        )}
 
         {/* Warning if no save selected and not using latest */}
         {!activeProfile.selectedSave && !activeProfile.useLatestSave && (

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProfile } from '../context/ProfileContext';
-import type { ServerProfile } from '../../shared/types';
+import type { ServerProfile, AppSettings, RestartSchedule, ScheduledCommand } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -29,6 +29,9 @@ function makeEmptyProfile(): Omit<ServerProfile, 'id'> {
     adminListPath: null,
     banListPath: null,
     whitelistPath: null,
+    autoRestart: false,
+    restartSchedule: { type: 'off', intervalHours: 6, dailyTime: '04:00' },
+    scheduledCommands: [],
   };
 }
 
@@ -53,6 +56,33 @@ interface PasswordInputProps {
   value: string;
   onChange: (v: string) => void;
   placeholder?: string;
+}
+
+interface ToggleSettingProps {
+  label: string;
+  description?: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+}
+
+function ToggleSetting({ label, description, checked, onChange }: ToggleSettingProps) {
+  return (
+    <div className="flex items-center gap-3">
+      <label className="relative inline-flex items-center cursor-pointer shrink-0">
+        <input
+          type="checkbox"
+          className="sr-only peer"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <div className="w-9 h-5 bg-factorio-darker border border-factorio-border peer-checked:bg-factorio-orange transition-colors after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-factorio-text after:w-3.5 after:h-3.5 peer-checked:after:translate-x-4 after:transition-transform" />
+      </label>
+      <div>
+        <span className="text-sm text-factorio-text">{label}</span>
+        {description && <p className="text-xs text-factorio-muted">{description}</p>}
+      </div>
+    </div>
+  );
 }
 
 function PasswordInput({ value, onChange, placeholder }: PasswordInputProps) {
@@ -92,6 +122,9 @@ interface ProfileFormData {
   adminListPath: string | null;
   banListPath: string | null;
   whitelistPath: string | null;
+  autoRestart: boolean;
+  restartSchedule: RestartSchedule;
+  scheduledCommands: ScheduledCommand[];
 }
 
 function formFromProfile(profile: Omit<ServerProfile, 'id'> | ServerProfile): ProfileFormData {
@@ -105,6 +138,9 @@ function formFromProfile(profile: Omit<ServerProfile, 'id'> | ServerProfile): Pr
     adminListPath: profile.adminListPath,
     banListPath: profile.banListPath,
     whitelistPath: profile.whitelistPath,
+    autoRestart: profile.autoRestart ?? false,
+    restartSchedule: profile.restartSchedule ?? { type: 'off', intervalHours: 6, dailyTime: '04:00' },
+    scheduledCommands: profile.scheduledCommands ?? [],
   };
 }
 
@@ -208,6 +244,171 @@ function ProfileForm({ form, onChange, onAutoDetect, detecting }: ProfileFormPro
           onChange={(v) => patch({ rconPassword: v })}
           placeholder="RCON password"
         />
+      </div>
+
+      {/* Auto-restart toggle */}
+      <div className="flex items-center gap-3">
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            className="sr-only peer"
+            checked={form.autoRestart}
+            onChange={(e) => patch({ autoRestart: e.target.checked })}
+          />
+          <div className="w-9 h-5 bg-factorio-darker border border-factorio-border peer-checked:bg-factorio-orange transition-colors after:content-[''] after:absolute after:top-[3px] after:left-[3px] after:bg-factorio-text after:w-3.5 after:h-3.5 peer-checked:after:translate-x-4 after:transition-transform" />
+        </label>
+        <div>
+          <span className="text-sm text-factorio-text">Auto-restart on crash</span>
+          <p className="text-xs text-factorio-muted">Automatically restart the server if it exits unexpectedly (max 3 attempts in 5 minutes)</p>
+        </div>
+      </div>
+
+      {/* Scheduled restart */}
+      <div className="space-y-3">
+        <label className="label">Scheduled Restart</label>
+        <div className="flex items-center gap-3">
+          <select
+            className="input"
+            value={form.restartSchedule.type}
+            onChange={(e) =>
+              patch({
+                restartSchedule: {
+                  ...form.restartSchedule,
+                  type: e.target.value as RestartSchedule['type'],
+                },
+              })
+            }
+          >
+            <option value="off">Off</option>
+            <option value="interval">Every N hours</option>
+            <option value="daily">Daily at time</option>
+          </select>
+
+          {form.restartSchedule.type === 'interval' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-factorio-muted">Every</span>
+              <input
+                className="input w-20"
+                type="number"
+                min={1}
+                max={168}
+                value={form.restartSchedule.intervalHours}
+                onChange={(e) =>
+                  patch({
+                    restartSchedule: {
+                      ...form.restartSchedule,
+                      intervalHours: Math.max(1, Number(e.target.value)),
+                    },
+                  })
+                }
+              />
+              <span className="text-sm text-factorio-muted">hours</span>
+            </div>
+          )}
+
+          {form.restartSchedule.type === 'daily' && (
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-factorio-muted">At</span>
+              <input
+                className="input w-28"
+                type="time"
+                value={form.restartSchedule.dailyTime}
+                onChange={(e) =>
+                  patch({
+                    restartSchedule: {
+                      ...form.restartSchedule,
+                      dailyTime: e.target.value,
+                    },
+                  })
+                }
+              />
+            </div>
+          )}
+        </div>
+        <p className="text-xs text-factorio-muted">
+          {form.restartSchedule.type === 'off'
+            ? 'No scheduled restarts'
+            : 'Players will be warned at 5 min, 1 min, and 10 sec before restart'}
+        </p>
+      </div>
+
+      {/* Scheduled commands */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="label">Scheduled Commands</label>
+          <button
+            className="btn-secondary text-xs"
+            type="button"
+            onClick={() => {
+              const newCmd: ScheduledCommand = {
+                id: crypto.randomUUID(),
+                command: '/server-save',
+                intervalMinutes: 15,
+                enabled: true,
+                label: 'Auto-save',
+              };
+              patch({ scheduledCommands: [...(form.scheduledCommands ?? []), newCmd] });
+            }}
+          >
+            + Add
+          </button>
+        </div>
+
+        {(form.scheduledCommands ?? []).map((cmd, i) => (
+          <div key={cmd.id} className="flex items-center gap-2 bg-factorio-darker border border-factorio-border p-2">
+            <input
+              type="checkbox"
+              checked={cmd.enabled}
+              onChange={(e) => {
+                const updated = form.scheduledCommands.map((c, j) => j === i ? { ...c, enabled: e.target.checked } : c);
+                patch({ scheduledCommands: updated });
+              }}
+              className="accent-factorio-orange shrink-0"
+            />
+            <input
+              className="input flex-1 !py-1 font-mono text-sm"
+              value={cmd.command}
+              onChange={(e) => {
+                const updated = form.scheduledCommands.map((c, j) => j === i ? { ...c, command: e.target.value } : c);
+                patch({ scheduledCommands: updated });
+              }}
+              placeholder="/server-save"
+            />
+            <input
+              className="input w-16 !py-1 text-sm"
+              type="number"
+              min={1}
+              value={cmd.intervalMinutes}
+              onChange={(e) => {
+                const updated = form.scheduledCommands.map((c, j) => j === i ? { ...c, intervalMinutes: Math.max(1, Number(e.target.value)) } : c);
+                patch({ scheduledCommands: updated });
+              }}
+            />
+            <span className="text-xs text-factorio-muted shrink-0">min</span>
+            <input
+              className="input flex-1 !py-1 text-sm"
+              value={cmd.label}
+              onChange={(e) => {
+                const updated = form.scheduledCommands.map((c, j) => j === i ? { ...c, label: e.target.value } : c);
+                patch({ scheduledCommands: updated });
+              }}
+              placeholder="Label"
+            />
+            <button
+              type="button"
+              className="text-red-400 hover:text-red-200 text-sm px-1"
+              onClick={() => {
+                patch({ scheduledCommands: form.scheduledCommands.filter((_, j) => j !== i) });
+              }}
+            >
+              &times;
+            </button>
+          </div>
+        ))}
+
+        <p className="text-xs text-factorio-muted">
+          Commands run via RCON at the set interval while the server is running.
+        </p>
       </div>
 
       {/* Optional file paths */}
@@ -354,6 +555,9 @@ function SetupWizard({ onCreate }: SetupWizardProps) {
         adminListPath: form.adminListPath,
         banListPath: form.banListPath,
         whitelistPath: form.whitelistPath,
+        autoRestart: form.autoRestart,
+        restartSchedule: form.restartSchedule,
+        scheduledCommands: form.scheduledCommands,
       });
     } finally {
       setCreating(false);
@@ -417,6 +621,18 @@ export default function Settings() {
   const [createDetecting, setCreateDetecting] = useState(false);
   const [creating, setCreating] = useState(false);
 
+  // App settings state
+  const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
+
+  useEffect(() => {
+    window.electronAPI.appSettings.get().then(setAppSettings);
+  }, []);
+
+  const updateAppSetting = useCallback(async (partial: Partial<AppSettings>) => {
+    const updated = await window.electronAPI.appSettings.update(partial);
+    setAppSettings(updated);
+  }, []);
+
   // Sync edit form when activeProfile changes
   useEffect(() => {
     if (activeProfile) {
@@ -463,6 +679,9 @@ export default function Settings() {
         adminListPath: editForm.adminListPath,
         banListPath: editForm.banListPath,
         whitelistPath: editForm.whitelistPath,
+        autoRestart: editForm.autoRestart,
+        restartSchedule: editForm.restartSchedule,
+        scheduledCommands: editForm.scheduledCommands,
       });
       await refreshProfiles();
       setToast('Profile saved successfully.');
@@ -487,6 +706,9 @@ export default function Settings() {
         adminListPath: createForm.adminListPath,
         banListPath: createForm.banListPath,
         whitelistPath: createForm.whitelistPath,
+        autoRestart: createForm.autoRestart,
+        restartSchedule: createForm.restartSchedule,
+        scheduledCommands: createForm.scheduledCommands,
       };
       setCreating(true);
       try {
@@ -568,7 +790,7 @@ export default function Settings() {
           <h3 className="text-factorio-orange font-semibold text-sm mb-3">
             Server Profiles
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 mb-3">
             {profiles.map((p) => (
               <button
                 key={p.id}
@@ -582,6 +804,36 @@ export default function Settings() {
                 {p.name}
               </button>
             ))}
+          </div>
+          <div className="flex gap-2">
+            <button
+              className="btn-secondary text-xs"
+              disabled={!activeProfile}
+              onClick={async () => {
+                if (!activeProfile) return;
+                const path = await window.electronAPI.profiles.export(activeProfile.id);
+                if (path) setToast('Profile exported.');
+              }}
+            >
+              Export Profile
+            </button>
+            <button
+              className="btn-secondary text-xs"
+              onClick={async () => {
+                try {
+                  const imported = await window.electronAPI.profiles.import();
+                  if (imported) {
+                    await refreshProfiles();
+                    setActiveProfile(imported);
+                    setToast('Profile imported.');
+                  }
+                } catch (err) {
+                  setToast(err instanceof Error ? err.message : 'Failed to import profile.');
+                }
+              }}
+            >
+              Import Profile
+            </button>
           </div>
         </div>
 
@@ -665,6 +917,97 @@ export default function Settings() {
             </>
           )}
         </div>
+
+        {/* ---- App Settings ---- */}
+        {appSettings && (
+          <div className="card">
+            <h3 className="text-factorio-orange font-semibold text-sm mb-4">
+              App Settings
+            </h3>
+            <div className="space-y-4">
+              <ToggleSetting
+                label="Close to tray"
+                description="Minimize to system tray instead of quitting when closing the window"
+                checked={appSettings.closeToTray}
+                onChange={(v) => updateAppSetting({ closeToTray: v })}
+              />
+              <ToggleSetting
+                label="Auto-start server on launch"
+                description="Automatically start the server using the active profile when the app opens"
+                checked={appSettings.autoStartServer}
+                onChange={(v) => updateAppSetting({ autoStartServer: v })}
+              />
+              <div className="border-t border-factorio-border pt-4">
+                <ToggleSetting
+                  label="Automatic backups"
+                  description="Back up save files before server start and prune old backups"
+                  checked={appSettings.backupEnabled}
+                  onChange={(v) => updateAppSetting({ backupEnabled: v })}
+                />
+                {appSettings.backupEnabled && (
+                  <div className="ml-12 mt-3 space-y-3">
+                    <ToggleSetting
+                      label="Backup before server start"
+                      checked={appSettings.backupBeforeStart}
+                      onChange={(v) => updateAppSetting({ backupBeforeStart: v })}
+                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-factorio-text">Max backups</span>
+                      <input
+                        className="input w-20"
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={appSettings.maxBackups}
+                        onChange={(e) => updateAppSetting({ maxBackups: Math.max(1, Number(e.target.value)) })}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="border-t border-factorio-border pt-4">
+                <ToggleSetting
+                  label="UPnP port forwarding"
+                  description="Automatically forward the server port on your router via UPnP when the server starts"
+                  checked={appSettings.upnpEnabled}
+                  onChange={(v) => updateAppSetting({ upnpEnabled: v })}
+                />
+              </div>
+              <div className="border-t border-factorio-border pt-4">
+                <ToggleSetting
+                  label="Desktop notifications"
+                  description="Show native OS notifications for server events"
+                  checked={appSettings.notificationsEnabled}
+                  onChange={(v) => updateAppSetting({ notificationsEnabled: v })}
+                />
+                {appSettings.notificationsEnabled && (
+                  <div className="ml-12 mt-3 space-y-3">
+                    <ToggleSetting
+                      label="Server started"
+                      checked={appSettings.notifyOnStart}
+                      onChange={(v) => updateAppSetting({ notifyOnStart: v })}
+                    />
+                    <ToggleSetting
+                      label="Server stopped"
+                      checked={appSettings.notifyOnStop}
+                      onChange={(v) => updateAppSetting({ notifyOnStop: v })}
+                    />
+                    <ToggleSetting
+                      label="Server crashed"
+                      checked={appSettings.notifyOnCrash}
+                      onChange={(v) => updateAppSetting({ notifyOnCrash: v })}
+                    />
+                    <ToggleSetting
+                      label="Player joined / left"
+                      checked={appSettings.notifyOnPlayerJoin}
+                      onChange={(v) => updateAppSetting({ notifyOnPlayerJoin: v })}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

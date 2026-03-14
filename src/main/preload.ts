@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/ipc-channels';
-import type { ServerStatus, RconStatus, LogEntry, ServerProfile, ServerSettings, SaveFile, ModInfo, BanEntry } from '../shared/types';
+import type { ServerStatus, RconStatus, LogEntry, AutoRestartInfo, ServerProfile, ServerSettings, SaveFile, ModInfo, BanEntry, AppSettings, ServerEvent, ServerStats, BackupEntry, UpnpStatus, MapSettings, MapGenSettings } from '../shared/types';
 
 type UnsubscribeFn = () => void;
 
@@ -22,6 +22,12 @@ const api = {
       onEvent(IPC.SERVER_STATUS_CHANGE, cb),
     onLog: (cb: (entry: LogEntry) => void): UnsubscribeFn =>
       onEvent(IPC.SERVER_LOG, cb),
+    onAutoRestart: (cb: (info: AutoRestartInfo | null) => void): UnsubscribeFn =>
+      onEvent(IPC.SERVER_AUTO_RESTART, cb),
+    onEvent: (cb: (event: ServerEvent) => void): UnsubscribeFn =>
+      onEvent(IPC.SERVER_EVENT, cb),
+    onStats: (cb: (stats: ServerStats) => void): UnsubscribeFn =>
+      onEvent(IPC.SERVER_STATS, cb),
   },
 
   config: {
@@ -98,6 +104,10 @@ const api = {
       ipcRenderer.invoke(IPC.PROFILES_GET_ACTIVE_ID),
     setActiveId: (id: string | null): Promise<void> =>
       ipcRenderer.invoke(IPC.PROFILES_SET_ACTIVE_ID, id),
+    export: (profileId: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.PROFILES_EXPORT, profileId),
+    import: (): Promise<ServerProfile | null> =>
+      ipcRenderer.invoke(IPC.PROFILES_IMPORT),
   },
 
   util: {
@@ -113,6 +123,52 @@ const api = {
       ipcRenderer.invoke(IPC.UTIL_GET_LOCAL_IP),
     getPublicIp: (): Promise<string | null> =>
       ipcRenderer.invoke(IPC.UTIL_GET_PUBLIC_IP),
+    getFactorioVersion: (factorioPath: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.UTIL_GET_FACTORIO_VERSION, factorioPath),
+    saveTextFile: (defaultName: string, content: string): Promise<string | null> =>
+      ipcRenderer.invoke(IPC.UTIL_SAVE_TEXT_FILE, defaultName, content),
+    checkUpdates: (): Promise<{ stable: string; experimental: string } | null> =>
+      ipcRenderer.invoke(IPC.UTIL_CHECK_UPDATES),
+  },
+
+  backups: {
+    list: (): Promise<BackupEntry[]> =>
+      ipcRenderer.invoke(IPC.BACKUPS_LIST),
+    create: (): Promise<string> =>
+      ipcRenderer.invoke(IPC.BACKUPS_CREATE),
+    restore: (backupPath: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.BACKUPS_RESTORE, backupPath),
+    delete: (backupPath: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.BACKUPS_DELETE, backupPath),
+  },
+
+  mapSettings: {
+    readMapSettings: (): Promise<MapSettings> =>
+      ipcRenderer.invoke(IPC.MAP_SETTINGS_READ),
+    writeMapSettings: (data: MapSettings): Promise<void> =>
+      ipcRenderer.invoke(IPC.MAP_SETTINGS_WRITE, data),
+    readMapGenSettings: (): Promise<MapGenSettings> =>
+      ipcRenderer.invoke(IPC.MAP_GEN_SETTINGS_READ),
+    writeMapGenSettings: (data: MapGenSettings): Promise<void> =>
+      ipcRenderer.invoke(IPC.MAP_GEN_SETTINGS_WRITE, data),
+  },
+
+  upnp: {
+    map: (port: number, protocol: string, description: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.UPNP_MAP, port, protocol, description),
+    unmap: (port: number, protocol: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.UPNP_UNMAP, port, protocol),
+    getStatus: (): Promise<UpnpStatus> =>
+      ipcRenderer.invoke(IPC.UPNP_GET_STATUS),
+    onStatusChange: (cb: (status: UpnpStatus) => void): UnsubscribeFn =>
+      onEvent(IPC.UPNP_STATUS_CHANGE, cb),
+  },
+
+  appSettings: {
+    get: (): Promise<AppSettings> =>
+      ipcRenderer.invoke(IPC.APP_SETTINGS_GET),
+    update: (partial: Partial<AppSettings>): Promise<AppSettings> =>
+      ipcRenderer.invoke(IPC.APP_SETTINGS_UPDATE, partial),
   },
 };
 

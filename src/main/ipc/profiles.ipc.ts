@@ -1,10 +1,38 @@
 import os from 'os';
 import https from 'https';
+import fs from 'fs';
+import path from 'path';
+import { execFile } from 'child_process';
 import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { IPC } from '../../shared/ipc-channels';
+import type { ServerProfile } from '../../shared/types';
 import * as profileStore from '../services/profile-store';
 import { detectFactorioPath } from '../services/path-detector';
-import { resolveUserDataPath } from '../util/constants';
+import { resolveUserDataPath, FACTORIO_EXE_RELATIVE } from '../util/constants';
+import { rescheduleIfActive } from '../services/restart-scheduler';
+import { rescheduleCommandsIfActive } from '../services/command-scheduler';
+
+const versionCache = new Map<string, string>();
+
+function getFactorioVersion(factorioPath: string): Promise<string | null> {
+  const cached = versionCache.get(factorioPath);
+  if (cached) return Promise.resolve(cached);
+
+  const exePath = path.join(factorioPath, FACTORIO_EXE_RELATIVE);
+  return new Promise((resolve) => {
+    execFile(exePath, ['--version'], { timeout: 10_000 }, (err, stdout) => {
+      if (err) { resolve(null); return; }
+      // Output: "Version: 2.0.28 (build 74355, win64, steam)"
+      const match = stdout.match(/Version:\s*(\S+)/);
+      if (match) {
+        versionCache.set(factorioPath, match[1]);
+        resolve(match[1]);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+}
 
 export function registerProfileIpc(): void {
   ipcMain.handle(IPC.PROFILES_LIST, () => {
@@ -20,7 +48,10 @@ export function registerProfileIpc(): void {
   });
 
   ipcMain.handle(IPC.PROFILES_UPDATE, (_, id: string, updates) => {
-    return profileStore.updateProfile(id, updates);
+    const result = profileStore.updateProfile(id, updates);
+    if (updates.restartSchedule) rescheduleIfActive();
+    if (updates.scheduledCommands) rescheduleCommandsIfActive();
+    return result;
   });
 
   ipcMain.handle(IPC.PROFILES_DELETE, (_, id: string) => {
@@ -83,6 +114,85 @@ export function registerProfileIpc(): void {
         let data = '';
         res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
         res.on('end', () => resolve(data.trim() || null));
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+    });
+  });
+
+  ipcMain.handle(IPC.UTIL_GET_FACTORIO_VERSION, (_, factorioPath: string) => {
+    return getFactorioVersion(factorioPath);
+  });
+
+  // Save text content to a file via save dialog
+  ipcMain.handle(IPC.UTIL_SAVE_TEXT_FILE, async (_, defaultName: string, content: string) => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return null;
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: defaultName,
+      filters: [
+        { name: 'Text Files', extensions: ['txt'] },
+        { name: 'All Files', extensions: ['*'] },
+      ],
+    });
+    if (result.canceled || !result.filePath) return null;
+    fs.writeFileSync(result.filePath, content, 'utf-8');
+    return result.filePath;
+  });
+
+  // Profile export — save profile JSON to file
+  ipcMain.handle(IPC.PROFILES_EXPORT, async (_, profileId: string) => {
+    const profile = profileStore.getProfile(profileId);
+    if (!profile) throw new Error(`Profile not found: ${profileId}`);
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return null;
+    const result = await dialog.showSaveDialog(win, {
+      defaultPath: `${profile.name.replace(/[^a-zA-Z0-9_\-\s]/g, '')}.json`,
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+    });
+    if (result.canceled || !result.filePath) return null;
+    // Strip id before export — will get a new one on import
+    const { id: _id, ...exportData } = profile;
+    fs.writeFileSync(result.filePath, JSON.stringify(exportData, null, 2), 'utf-8');
+    return result.filePath;
+  });
+
+  // Profile import — read profile JSON from file and create
+  ipcMain.handle(IPC.PROFILES_IMPORT, async () => {
+    const win = BrowserWindow.getFocusedWindow();
+    if (!win) return null;
+    const result = await dialog.showOpenDialog(win, {
+      properties: ['openFile'],
+      filters: [{ name: 'JSON Files', extensions: ['json'] }],
+      title: 'Import Profile',
+    });
+    if (result.canceled || !result.filePaths[0]) return null;
+    const raw = fs.readFileSync(result.filePaths[0], 'utf-8');
+    const data = JSON.parse(raw) as Omit<ServerProfile, 'id'>;
+    // Validate required fields
+    if (!data.name || !data.factorioPath) {
+      throw new Error('Invalid profile: missing name or factorioPath');
+    }
+    return profileStore.createProfile(data);
+  });
+
+  // Check for Factorio updates
+  ipcMain.handle(IPC.UTIL_CHECK_UPDATES, () => {
+    return new Promise<{ stable: string; experimental: string } | null>((resolve) => {
+      const req = https.get('https://factorio.com/api/latest-releases', { timeout: 10_000 }, (res) => {
+        let data = '';
+        res.on('data', (chunk: Buffer) => { data += chunk.toString(); });
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(data);
+            resolve({
+              stable: json.stable?.alpha ?? null,
+              experimental: json.experimental?.alpha ?? null,
+            });
+          } catch {
+            resolve(null);
+          }
+        });
       });
       req.on('error', () => resolve(null));
       req.on('timeout', () => { req.destroy(); resolve(null); });

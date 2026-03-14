@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import readline from 'readline';
 
-import type { LogEntry, ServerProfile, ServerStatus } from '../../shared/types';
+import type { AutoRestartInfo, LogEntry, ServerProfile, ServerStatus } from '../../shared/types';
 import { DEFAULT_SERVER_PORT, FACTORIO_EXE_RELATIVE, resolveUserDataPath } from '../util/constants';
 import { DEFAULT_SERVER_SETTINGS } from '../../shared/server-settings.schema';
 import { rconClient } from './rcon-client';
@@ -13,6 +13,9 @@ import { rconClient } from './rcon-client';
 const GRACEFUL_SHUTDOWN_TIMEOUT_MS = 15_000;
 const RCON_CONNECT_MAX_RETRIES = 3;
 const RCON_CONNECT_RETRY_DELAY_MS = 2_000;
+const AUTO_RESTART_DELAY_SECONDS = 5;
+const AUTO_RESTART_MAX_ATTEMPTS = 3;
+const AUTO_RESTART_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Manages the lifecycle of a Factorio dedicated server child process.
@@ -26,6 +29,9 @@ export class ServerProcessManager extends EventEmitter {
   private child: ChildProcess | null = null;
   private activeProfile: ServerProfile | null = null;
   private sessionId = 0;
+  private crashTimestamps: number[] = [];
+  private autoRestartTimer: ReturnType<typeof setTimeout> | null = null;
+  private autoRestartCountdownTimer: ReturnType<typeof setInterval> | null = null;
 
   // ──────────────────────────────────────────────
   //  Public API
@@ -33,6 +39,10 @@ export class ServerProcessManager extends EventEmitter {
 
   getStatus(): ServerStatus {
     return this.status;
+  }
+
+  getPid(): number | null {
+    return this.child?.pid ?? null;
   }
 
   /**
@@ -44,6 +54,7 @@ export class ServerProcessManager extends EventEmitter {
     if (this.status !== 'stopped' && this.status !== 'errored') {
       throw new Error(`Cannot start server while status is "${this.status}"`);
     }
+    this.cancelAutoRestart();
 
     // --- Validate executable path ---
     const exePath = path.join(profile.factorioPath, FACTORIO_EXE_RELATIVE);
@@ -96,17 +107,20 @@ export class ServerProcessManager extends EventEmitter {
     // --- Handle process exit ---
     child.on('exit', (code, signal) => {
       this.child = null;
-      this.activeProfile = null;
+      const crashedProfile = this.activeProfile;
 
       if (this.status === 'stopping') {
+        this.activeProfile = null;
         this.setStatus('stopped');
       } else {
         // Unexpected exit.
+        this.activeProfile = null;
         this.emitLog(
           'stderr',
           `Server process exited unexpectedly (code=${code}, signal=${signal})`,
         );
         this.setStatus('errored');
+        this.scheduleAutoRestart(crashedProfile);
       }
     });
 
@@ -373,9 +387,75 @@ export class ServerProcessManager extends EventEmitter {
     });
   }
 
+  cancelAutoRestart(): void {
+    if (this.autoRestartTimer) {
+      clearTimeout(this.autoRestartTimer);
+      this.autoRestartTimer = null;
+    }
+    if (this.autoRestartCountdownTimer) {
+      clearInterval(this.autoRestartCountdownTimer);
+      this.autoRestartCountdownTimer = null;
+    }
+  }
+
+  private scheduleAutoRestart(profile: ServerProfile | null): void {
+    if (!profile?.autoRestart) return;
+
+    const now = Date.now();
+    this.crashTimestamps = this.crashTimestamps.filter(
+      (t) => now - t < AUTO_RESTART_WINDOW_MS,
+    );
+    this.crashTimestamps.push(now);
+
+    if (this.crashTimestamps.length > AUTO_RESTART_MAX_ATTEMPTS) {
+      this.emitLog(
+        'stderr',
+        `Auto-restart disabled: ${AUTO_RESTART_MAX_ATTEMPTS} crashes within ${AUTO_RESTART_WINDOW_MS / 60000} minutes.`,
+      );
+      return;
+    }
+
+    const attempt = this.crashTimestamps.length;
+    let remaining = AUTO_RESTART_DELAY_SECONDS;
+
+    this.emitLog('stdout', `Auto-restarting in ${remaining}s (attempt ${attempt}/${AUTO_RESTART_MAX_ATTEMPTS})...`);
+    this.emit('autoRestart', {
+      remainingSeconds: remaining,
+      attempt,
+      maxAttempts: AUTO_RESTART_MAX_ATTEMPTS,
+    } as AutoRestartInfo);
+
+    this.autoRestartCountdownTimer = setInterval(() => {
+      remaining--;
+      if (remaining > 0) {
+        this.emit('autoRestart', {
+          remainingSeconds: remaining,
+          attempt,
+          maxAttempts: AUTO_RESTART_MAX_ATTEMPTS,
+        } as AutoRestartInfo);
+      }
+    }, 1000);
+
+    this.autoRestartTimer = setTimeout(async () => {
+      this.cancelAutoRestart();
+      this.emit('autoRestart', null);
+      try {
+        await this.start(profile);
+      } catch (err) {
+        this.emitLog(
+          'stderr',
+          `Auto-restart failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }, AUTO_RESTART_DELAY_SECONDS * 1000);
+  }
+
   private setStatus(status: ServerStatus): void {
     if (this.status === status) return;
     this.status = status;
+    if (status === 'running') {
+      this.crashTimestamps = [];
+    }
     this.emit('statusChange', status);
   }
 

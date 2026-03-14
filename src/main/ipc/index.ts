@@ -5,6 +5,10 @@ import { registerSavesIpc } from './saves.ipc';
 import { registerRconIpc } from './rcon.ipc';
 import { registerModsIpc } from './mods.ipc';
 import { registerPlayersIpc } from './players.ipc';
+import { registerAppSettingsIpc } from './app-settings.ipc';
+import { registerBackupsIpc } from './backups.ipc';
+import { registerMapSettingsIpc } from './map-settings.ipc';
+import { registerUpnpIpc } from './upnp.ipc';
 
 export function registerAllIpc(): void {
   registerProfileIpc();
@@ -14,4 +18,8 @@ export function registerAllIpc(): void {
   registerRconIpc();
   registerModsIpc();
   registerPlayersIpc();
+  registerAppSettingsIpc();
+  registerBackupsIpc();
+  registerMapSettingsIpc();
+  registerUpnpIpc();
 }

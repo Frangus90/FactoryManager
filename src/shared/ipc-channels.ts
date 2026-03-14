@@ -7,6 +7,9 @@ export const IPC = {
   SERVER_GET_STATUS: 'server:getStatus',
   SERVER_STATUS_CHANGE: 'server:statusChange',
   SERVER_LOG: 'server:log',
+  SERVER_AUTO_RESTART: 'server:autoRestart',
+  SERVER_EVENT: 'server:event',
+  SERVER_STATS: 'server:stats',
 
   // Config file management
   CONFIG_READ: 'config:read',
@@ -56,4 +59,33 @@ export const IPC = {
   UTIL_RESOLVE_USER_DATA_PATH: 'util:resolveUserDataPath',
   UTIL_GET_LOCAL_IP: 'util:getLocalIp',
   UTIL_GET_PUBLIC_IP: 'util:getPublicIp',
+  UTIL_GET_FACTORIO_VERSION: 'util:getFactorioVersion',
+  UTIL_SAVE_TEXT_FILE: 'util:saveTextFile',
+  UTIL_CHECK_UPDATES: 'util:checkUpdates',
+
+  // Profile export/import
+  PROFILES_EXPORT: 'profiles:export',
+  PROFILES_IMPORT: 'profiles:import',
+
+  // Backups
+  BACKUPS_LIST: 'backups:list',
+  BACKUPS_CREATE: 'backups:create',
+  BACKUPS_RESTORE: 'backups:restore',
+  BACKUPS_DELETE: 'backups:delete',
+
+  // Map settings
+  MAP_SETTINGS_READ: 'mapSettings:read',
+  MAP_SETTINGS_WRITE: 'mapSettings:write',
+  MAP_GEN_SETTINGS_READ: 'mapGenSettings:read',
+  MAP_GEN_SETTINGS_WRITE: 'mapGenSettings:write',
+
+  // UPnP
+  UPNP_MAP: 'upnp:map',
+  UPNP_UNMAP: 'upnp:unmap',
+  UPNP_GET_STATUS: 'upnp:getStatus',
+  UPNP_STATUS_CHANGE: 'upnp:statusChange',
+
+  // App settings
+  APP_SETTINGS_GET: 'appSettings:get',
+  APP_SETTINGS_UPDATE: 'appSettings:update',
 } as const;

@@ -26,6 +26,14 @@ export default function RconConsole() {
   const isConnected = rconStatus === 'connected';
   const isConnecting = rconStatus === 'connecting';
 
+  const QUICK_COMMANDS = [
+    { label: 'Players', command: '/players' },
+    { label: 'Time', command: '/time' },
+    { label: 'Evolution', command: '/evolution' },
+    { label: 'Seed', command: '/seed' },
+    { label: 'Save', command: '/server-save' },
+  ];
+
   // Populate port and password from active profile when it changes
   useEffect(() => {
     if (activeProfile) {
@@ -172,6 +180,21 @@ export default function RconConsole() {
           <button className="btn-danger" onClick={handleDisconnect}>
             Disconnect
           </button>
+        </div>
+      )}
+
+      {/* Quick commands */}
+      {isConnected && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {QUICK_COMMANDS.map((qc) => (
+            <button
+              key={qc.command}
+              className="btn-secondary text-xs !px-2.5 !py-1"
+              onClick={() => send(qc.command)}
+            >
+              {qc.label}
+            </button>
+          ))}
         </div>
       )}
 

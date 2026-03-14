@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useServerStatus } from '../../hooks/useServerStatus';
+import { useProfile } from '../../context/ProfileContext';
 import StatusIndicator from '../StatusIndicator';
 
 const NAV_ITEMS = [
@@ -11,12 +12,22 @@ const NAV_ITEMS = [
   { to: '/logs', label: 'Logs', icon: '📋' },
   { to: '/mods', label: 'Mods', icon: '🧩' },
   { to: '/players', label: 'Players', icon: '👥' },
+  { to: '/map-settings', label: 'Map Settings', icon: '🗺' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
   { to: '/help', label: 'Help & Guide', icon: '?' },
 ];
 
 export default function Sidebar() {
   const { status } = useServerStatus();
+  const { activeProfile } = useProfile();
+  const [factorioVersion, setFactorioVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!activeProfile) { setFactorioVersion(null); return; }
+    window.electronAPI.util.getFactorioVersion(activeProfile.factorioPath)
+      .then(setFactorioVersion)
+      .catch(() => setFactorioVersion(null));
+  }, [activeProfile?.factorioPath]);
 
   return (
     <aside
@@ -68,7 +79,7 @@ export default function Sidebar() {
           boxShadow: '0 -1px 0 #5a5a5a',
         }}
       >
-        v1.0.0
+        {factorioVersion ? `Factorio ${factorioVersion}` : 'FactoryManager'}
       </div>
     </aside>
   );

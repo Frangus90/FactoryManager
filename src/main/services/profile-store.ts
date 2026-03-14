@@ -79,5 +79,8 @@ export function createDefaultProfile(factorioPath: string): ServerProfile {
     adminListPath: null,
     banListPath: null,
     whitelistPath: null,
+    autoRestart: false,
+    restartSchedule: { type: 'off', intervalHours: 6, dailyTime: '04:00' },
+    scheduledCommands: [],
   });
 }

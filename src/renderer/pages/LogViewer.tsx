@@ -58,6 +58,21 @@ export default function LogViewer() {
     setAutoScroll((prev) => !prev);
   }, []);
 
+  const [exporting, setExporting] = useState(false);
+
+  const handleExportLogs = useCallback(async () => {
+    setExporting(true);
+    try {
+      const text = logs
+        .map((e) => `[${formatTimestamp(e.timestamp)}] [${e.stream}] ${e.text}`)
+        .join('\n');
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      await window.electronAPI.util.saveTextFile(`server-logs-${timestamp}.txt`, text);
+    } finally {
+      setExporting(false);
+    }
+  }, [logs]);
+
   const [copyLabel, setCopyLabel] = useState('Copy Last 50');
 
   const handleCopyLogs = useCallback(async () => {
@@ -128,6 +143,15 @@ export default function LogViewer() {
           disabled={logs.length === 0}
         >
           {copyLabel}
+        </button>
+
+        {/* Export */}
+        <button
+          className="btn-secondary"
+          onClick={handleExportLogs}
+          disabled={logs.length === 0 || exporting}
+        >
+          {exporting ? 'Saving...' : 'Export'}
         </button>
 
         {/* Clear */}
