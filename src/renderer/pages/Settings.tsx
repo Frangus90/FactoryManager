@@ -6,19 +6,31 @@ import type { ServerProfile } from '../../shared/types';
 // Constants
 // ---------------------------------------------------------------------------
 
-const EMPTY_PROFILE: Omit<ServerProfile, 'id'> = {
-  name: '',
-  factorioPath: '',
-  selectedSave: null,
-  useLatestSave: true,
-  rconPort: 27015,
-  rconPassword: '',
-  serverPort: 34197,
-  serverSettingsPath: null,
-  adminListPath: null,
-  banListPath: null,
-  whitelistPath: null,
-};
+function generateRconPassword(): string {
+  const bytes = new Uint8Array(18);
+  crypto.getRandomValues(bytes);
+  // base64url encoding without padding
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
+}
+
+function makeEmptyProfile(): Omit<ServerProfile, 'id'> {
+  return {
+    name: '',
+    factorioPath: '',
+    selectedSave: null,
+    useLatestSave: true,
+    rconPort: 27015,
+    rconPassword: generateRconPassword(),
+    serverPort: 34197,
+    serverSettingsPath: null,
+    adminListPath: null,
+    banListPath: null,
+    whitelistPath: null,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Small UI primitives
@@ -311,7 +323,7 @@ interface SetupWizardProps {
 }
 
 function SetupWizard({ onCreate }: SetupWizardProps) {
-  const [form, setForm] = useState<ProfileFormData>(formFromProfile(EMPTY_PROFILE));
+  const [form, setForm] = useState<ProfileFormData>(formFromProfile(makeEmptyProfile()));
   const [detecting, setDetecting] = useState(false);
   const [creating, setCreating] = useState(false);
 
@@ -332,7 +344,7 @@ function SetupWizard({ onCreate }: SetupWizardProps) {
     setCreating(true);
     try {
       await onCreate({
-        ...EMPTY_PROFILE,
+        ...makeEmptyProfile(),
         name: form.name,
         factorioPath: form.factorioPath,
         rconPort: form.rconPort,
@@ -400,7 +412,7 @@ export default function Settings() {
   // Create-new-profile state
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState<ProfileFormData>(
-    formFromProfile(EMPTY_PROFILE),
+    formFromProfile(makeEmptyProfile()),
   );
   const [createDetecting, setCreateDetecting] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -465,7 +477,7 @@ export default function Settings() {
   const handleCreateProfile = useCallback(
     async (profileData?: Omit<ServerProfile, 'id'>) => {
       const data = profileData ?? {
-        ...EMPTY_PROFILE,
+        ...makeEmptyProfile(),
         name: createForm.name,
         factorioPath: createForm.factorioPath,
         rconPort: createForm.rconPort,
@@ -482,7 +494,7 @@ export default function Settings() {
         await refreshProfiles();
         setActiveProfile(created);
         setShowCreate(false);
-        setCreateForm(formFromProfile(EMPTY_PROFILE));
+        setCreateForm(formFromProfile(makeEmptyProfile()));
         setToast('Profile created successfully.');
       } catch (err) {
         console.error('Failed to create profile:', err);
@@ -534,7 +546,7 @@ export default function Settings() {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Toast */}
       {toast && (
-        <div className="mx-4 mt-4 px-4 py-2 rounded bg-green-900/60 border border-green-700 text-green-300 text-sm flex items-center justify-between">
+        <div className="toast-success mx-4 mt-4 flex items-center justify-between">
           <span>{toast}</span>
           <button
             className="text-green-400 hover:text-green-200 ml-4"
@@ -560,7 +572,7 @@ export default function Settings() {
             {profiles.map((p) => (
               <button
                 key={p.id}
-                className={`px-3 py-1.5 rounded text-sm transition-colors border ${
+                className={`px-3 py-1.5 text-sm transition-colors border ${
                   activeProfile?.id === p.id
                     ? 'bg-factorio-orange text-factorio-darker border-factorio-orange font-medium'
                     : 'bg-factorio-darker text-factorio-text border-factorio-border hover:border-factorio-orange'

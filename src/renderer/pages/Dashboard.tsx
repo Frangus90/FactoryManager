@@ -188,7 +188,7 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* Error toast */}
       {error && (
-        <div className="px-4 py-2 rounded bg-red-900/60 border border-red-700 text-red-300 text-sm flex items-center justify-between">
+        <div className="toast-error flex items-center justify-between">
           <span>{error}</span>
           <button className="text-red-400 hover:text-red-200 ml-4" onClick={() => setError(null)}>&times;</button>
         </div>
@@ -249,7 +249,7 @@ export default function Dashboard() {
             {/* Local IP */}
             <div className="flex items-center gap-3">
               <span className="text-xs text-factorio-muted w-14 shrink-0 uppercase tracking-wide">Local</span>
-              <code className="flex-1 bg-factorio-darker border border-factorio-border rounded px-4 py-2.5 text-factorio-text font-mono text-lg select-all">
+              <code className="flex-1 bg-factorio-darker border border-factorio-border px-4 py-2.5 text-factorio-text font-mono text-lg select-all">
                 {localAddress}
               </code>
               <button className="btn-primary shrink-0" onClick={() => copyToClipboard(localAddress, setLocalCopyLabel)}>
@@ -261,7 +261,7 @@ export default function Dashboard() {
               <span className="text-xs text-factorio-muted w-14 shrink-0 uppercase tracking-wide">Public</span>
               {publicAddress ? (
                 <>
-                  <code className="flex-1 bg-factorio-darker border border-factorio-border rounded px-4 py-2.5 text-factorio-text font-mono text-lg select-all">
+                  <code className="flex-1 bg-factorio-darker border border-factorio-border px-4 py-2.5 text-factorio-text font-mono text-lg select-all">
                     {publicAddress}
                   </code>
                   <button className="btn-primary shrink-0" onClick={() => copyToClipboard(publicAddress, setPublicCopyLabel)}>
@@ -349,7 +349,7 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
-        <div className="bg-factorio-darker border border-factorio-border rounded p-3 h-64 overflow-y-auto font-mono text-xs leading-relaxed">
+        <div className="bg-factorio-darker border border-factorio-border p-3 h-64 overflow-y-auto font-mono text-xs leading-relaxed">
           {recentLogs.length === 0 ? (
             <p className="text-factorio-muted italic">No log output yet.</p>
           ) : (

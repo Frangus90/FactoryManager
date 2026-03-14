@@ -98,7 +98,7 @@ export default function ModManager() {
 
       {/* Warning banner when server is running */}
       {isRunning && (
-        <div className="flex items-center gap-2 bg-yellow-600/20 border border-yellow-600/40 text-yellow-400 rounded-lg px-4 py-3 mb-4 text-sm">
+        <div className="toast-warn mb-4 flex items-center gap-2">
           <span className="shrink-0 text-lg">!</span>
           <span>
             Mod changes require a server restart to take effect.
@@ -155,7 +155,7 @@ export default function ModManager() {
                       } ${isBase ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
                     >
                       <span
-                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                        className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-factorio-text transition-transform ${
                           mod.enabled ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
@@ -207,7 +207,7 @@ export default function ModManager() {
                             {mod.dependencies.map((dep, idx) => (
                               <span
                                 key={idx}
-                                className="text-xs px-2 py-0.5 bg-factorio-darker rounded text-factorio-muted"
+                                className="text-xs px-2 py-0.5 bg-factorio-darker text-factorio-muted"
                               >
                                 {dep}
                               </span>

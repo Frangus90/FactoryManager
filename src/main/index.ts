@@ -31,7 +31,7 @@ const createWindow = (): void => {
     minWidth: 900,
     minHeight: 600,
     title: 'FactoryManager',
-    backgroundColor: '#0f0f1a',
+    backgroundColor: '#242324',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

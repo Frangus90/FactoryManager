@@ -334,7 +334,7 @@ export default function PlayerManager() {
                 {admins.map((name) => (
                   <div
                     key={name}
-                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker rounded border border-factorio-border/50"
+                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker border border-factorio-border/50"
                   >
                     <span className="text-sm text-factorio-text">{name}</span>
                     <button
@@ -391,7 +391,7 @@ export default function PlayerManager() {
                 {bans.map((entry) => (
                   <div
                     key={entry.username}
-                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker rounded border border-factorio-border/50"
+                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker border border-factorio-border/50"
                   >
                     <div className="min-w-0">
                       <span className="text-sm text-factorio-text">
@@ -450,7 +450,7 @@ export default function PlayerManager() {
                 {whitelist.map((name) => (
                   <div
                     key={name}
-                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker rounded border border-factorio-border/50"
+                    className="flex items-center justify-between px-3 py-2 bg-factorio-darker border border-factorio-border/50"
                   >
                     <span className="text-sm text-factorio-text">{name}</span>
                     <button
@@ -501,7 +501,7 @@ export default function PlayerManager() {
               {activePlayers.map((player) => (
                 <div
                   key={player}
-                  className="flex items-center gap-2 px-3 py-2 bg-factorio-darker rounded border border-factorio-border/50"
+                  className="flex items-center gap-2 px-3 py-2 bg-factorio-darker border border-factorio-border/50"
                 >
                   <span className="flex-1 text-sm text-factorio-text">
                     {player}

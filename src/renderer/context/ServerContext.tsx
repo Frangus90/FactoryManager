@@ -54,11 +54,28 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
 
   // Subscribe to log events — persists across route changes
   useEffect(() => {
+    let rafId: number | null = null;
+
     const unsub = window.electronAPI.server.onLog((entry) => {
-      logsRef.current = [...logsRef.current.slice(-(MAX_LOG_LINES - 1)), entry];
-      setLogs(logsRef.current);
+      const arr = logsRef.current;
+      arr.push(entry);
+      // Trim in-place if over limit
+      if (arr.length > MAX_LOG_LINES) {
+        logsRef.current = arr.slice(-MAX_LOG_LINES);
+      }
+      // Coalesce renders via rAF — one render per frame max
+      if (rafId === null) {
+        rafId = requestAnimationFrame(() => {
+          rafId = null;
+          setLogs([...logsRef.current]);
+        });
+      }
     });
-    return unsub;
+
+    return () => {
+      unsub();
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, []);
 
   const clearLogs = useCallback(() => {

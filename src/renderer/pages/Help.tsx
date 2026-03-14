@@ -14,11 +14,11 @@ interface SectionProps {
 function Section({ title, icon, children, defaultOpen = false }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="border border-factorio-border rounded-lg overflow-hidden mb-3">
+    <div className="border border-factorio-border overflow-hidden mb-3">
       <button
         type="button"
         className={`w-full flex items-center gap-3 px-5 py-3.5 text-left transition-colors ${
-          open ? 'bg-factorio-panel' : 'bg-factorio-dark hover:bg-factorio-panel/60'
+          open ? 'bg-factorio-panel' : 'bg-factorio-dark hover:bg-factorio-panel'
         }`}
         onClick={() => setOpen(!open)}
       >
@@ -58,7 +58,7 @@ function Step({ n, children }: { n: number; children: React.ReactNode }) {
 
 function Tip({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 items-start bg-factorio-orange/10 border border-factorio-orange/30 rounded-lg px-4 py-2.5 text-sm">
+    <div className="flex gap-2 items-start bg-factorio-darker border border-factorio-border px-4 py-2.5 text-sm">
       <span className="shrink-0 text-factorio-orange font-bold">Tip:</span>
       <span>{children}</span>
     </div>
@@ -67,8 +67,8 @@ function Tip({ children }: { children: React.ReactNode }) {
 
 function Note({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex gap-2 items-start bg-blue-900/20 border border-blue-700/30 rounded-lg px-4 py-2.5 text-sm">
-      <span className="shrink-0 text-blue-400 font-bold">Note:</span>
+    <div className="flex gap-2 items-start bg-factorio-darker border border-factorio-border px-4 py-2.5 text-sm">
+      <span className="shrink-0 text-factorio-orange font-bold">Note:</span>
       <span>{children}</span>
     </div>
   );
@@ -76,7 +76,7 @@ function Note({ children }: { children: React.ReactNode }) {
 
 function Cmd({ children }: { children: React.ReactNode }) {
   return (
-    <code className="bg-factorio-darker border border-factorio-border rounded px-1.5 py-0.5 text-factorio-orange text-xs font-mono">
+    <code className="bg-factorio-darker border border-factorio-border px-1.5 py-0.5 text-factorio-orange text-xs font-mono">
       {children}
     </code>
   );
@@ -438,7 +438,7 @@ export default function Help() {
 
         <h4 className="font-semibold text-factorio-orange mt-4 mb-2">Useful commands:</h4>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border border-factorio-border rounded">
+          <table className="w-full text-sm border border-factorio-border">
             <thead>
               <tr className="bg-factorio-dark">
                 <th className="text-left px-3 py-2 text-factorio-muted font-medium border-b border-factorio-border">Command</th>
@@ -677,7 +677,7 @@ export default function Help() {
         </h4>
 
         <div className="overflow-x-auto mt-2">
-          <table className="w-full text-sm border border-factorio-border rounded">
+          <table className="w-full text-sm border border-factorio-border">
             <thead>
               <tr className="bg-factorio-dark">
                 <th className="text-left px-3 py-2 text-factorio-muted font-medium border-b border-factorio-border">What</th>

@@ -1,4 +1,5 @@
 import fs from 'fs/promises';
+import fsSync from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { app, shell } from 'electron';
@@ -44,7 +45,22 @@ export async function createSave(factorioPath: string, saveName: string, savesDi
   const targetDir = savesDir || path.join(factorioPath, SAVES_DIR);
   const savePath = path.join(targetDir, `${saveName}.zip`);
 
-  const configPath = path.join(app.getPath('userData'), 'server-data', 'config.ini');
+  const serverDataDir = path.join(app.getPath('userData'), 'server-data');
+  const configPath = path.join(serverDataDir, 'config.ini');
+
+  // Ensure config.ini exists -- server-process.ts creates it on start(),
+  // but createSave can be called before the server has ever been started.
+  if (!fsSync.existsSync(configPath)) {
+    if (!fsSync.existsSync(serverDataDir)) {
+      fsSync.mkdirSync(serverDataDir, { recursive: true });
+    }
+    const configContent = [
+      '[path]',
+      `write-data=${serverDataDir.replace(/\\/g, '/')}`,
+      '',
+    ].join('\n');
+    fsSync.writeFileSync(configPath, configContent, 'utf-8');
+  }
 
   return new Promise<void>((resolve, reject) => {
     const child = spawn(exePath, ['--config', configPath, '--create', savePath], {
@@ -85,7 +101,8 @@ export async function importSave(sourcePath: string, destDir: string, overwrite 
       await fs.access(destPath);
       throw Object.assign(new Error(`Save "${fileName}" already exists`), { code: 'EEXIST' });
     } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code === 'EEXIST') throw err;
+      const code = (err as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') throw err;
       // ENOENT = file doesn't exist, safe to proceed
     }
   }

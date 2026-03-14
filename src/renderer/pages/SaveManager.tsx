@@ -241,7 +241,7 @@ export default function SaveManager() {
               return (
                 <div
                   key={save.filePath}
-                  className="flex items-center justify-between bg-factorio-darker border border-factorio-border/50 rounded px-3 py-2"
+                  className="flex items-center justify-between bg-factorio-darker border border-factorio-border/50 px-3 py-2"
                 >
                   <div className="flex items-center gap-3 min-w-0">
                     <span className="text-factorio-text text-sm truncate">{save.name}</span>
@@ -281,7 +281,7 @@ export default function SaveManager() {
               <p className="text-factorio-muted">No server saves yet. Create one or import from your game.</p>
             </div>
           ) : (
-            <div className="border border-factorio-border rounded-lg overflow-hidden">
+            <div className="border border-factorio-border overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-factorio-dark border-b border-factorio-border">
@@ -316,7 +316,7 @@ export default function SaveManager() {
                           <div className="flex items-center gap-2">
                             <span className="text-factorio-text">{save.name}</span>
                             {isSelected && (
-                              <span className="text-xs text-factorio-orange font-medium px-1.5 py-0.5 bg-factorio-orange/10 rounded">
+                              <span className="text-xs text-factorio-orange font-medium px-1.5 py-0.5 bg-factorio-orange/10">
                                 Selected
                               </span>
                             )}

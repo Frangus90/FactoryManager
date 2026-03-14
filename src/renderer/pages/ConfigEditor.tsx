@@ -307,7 +307,7 @@ export default function ConfigEditor() {
     <div className="h-full flex flex-col overflow-hidden">
       {/* Toast / Banner */}
       {toast && (
-        <div className="mx-4 mt-4 px-4 py-2 rounded bg-green-900/60 border border-green-700 text-green-300 text-sm flex items-center justify-between">
+        <div className="toast-success mx-4 mt-4 flex items-center justify-between">
           <span>{toast}</span>
           <button
             className="text-green-400 hover:text-green-200 ml-4"
@@ -320,7 +320,7 @@ export default function ConfigEditor() {
 
       {/* Error banner */}
       {error && (
-        <div className="mx-4 mt-4 px-4 py-2 rounded bg-red-900/40 border border-red-700 text-red-300 text-sm flex items-center justify-between">
+        <div className="toast-error mx-4 mt-4 flex items-center justify-between">
           <span>{error}</span>
           <button
             className="text-red-400 hover:text-red-200 ml-4"

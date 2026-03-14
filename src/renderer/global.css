@@ -19,41 +19,95 @@
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-factorio-border rounded;
+    background-color: theme('colors.factorio.border');
+    box-shadow:
+      inset 1px 1px 0 theme('colors.factorio.highlight'),
+      inset -1px -1px 0 theme('colors.factorio.shadow');
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-factorio-muted;
+    background-color: theme('colors.factorio.muted');
   }
 }
 
 @layer components {
-  .btn {
-    @apply px-4 py-2 rounded font-medium text-sm transition-colors duration-150 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-primary {
-    @apply btn bg-factorio-orange text-factorio-darker hover:bg-amber-400;
-  }
-
-  .btn-danger {
-    @apply btn bg-red-600 text-white hover:bg-red-500;
-  }
-
-  .btn-secondary {
-    @apply btn bg-factorio-panel text-factorio-text border border-factorio-border hover:bg-factorio-border;
-  }
-
-  .input {
-    @apply bg-factorio-darker border border-factorio-border rounded px-3 py-2 text-factorio-text text-sm
-           focus:outline-none focus:border-factorio-orange transition-colors;
-  }
-
+  /* Raised panel with outset bevel */
   .card {
-    @apply bg-factorio-panel border border-factorio-border rounded-lg p-4;
+    @apply bg-factorio-panel p-4;
+    border: 1px solid theme('colors.factorio.border');
+    box-shadow:
+      inset 1px 1px 0 theme('colors.factorio.highlight'),
+      inset -1px -1px 0 theme('colors.factorio.shadow');
+  }
+
+  /* Base button — sharp corners, outset bevel */
+  .btn {
+    @apply px-4 py-2 font-medium text-sm transition-colors duration-150
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    box-shadow:
+      inset 1px 1px 0 rgba(255, 255, 255, 0.15),
+      inset -1px -1px 0 rgba(0, 0, 0, 0.4);
+  }
+  .btn:active:not(:disabled) {
+    box-shadow:
+      inset -1px -1px 0 rgba(255, 255, 255, 0.15),
+      inset 1px 1px 0 rgba(0, 0, 0, 0.4);
+  }
+
+  /* Primary action = green */
+  .btn-primary {
+    @apply btn bg-factorio-green text-factorio-darker;
+    border: 1px solid #3a8c3f;
+  }
+  .btn-primary:hover:not(:disabled) {
+    @apply bg-factorio-green-hover;
+  }
+
+  /* Danger = red */
+  .btn-danger {
+    @apply btn bg-red-700 text-white;
+    border: 1px solid #991b1b;
+  }
+  .btn-danger:hover:not(:disabled) {
+    @apply bg-red-600;
+  }
+
+  /* Secondary = neutral gray */
+  .btn-secondary {
+    @apply btn bg-factorio-panel text-factorio-text;
+    border: 1px solid theme('colors.factorio.border');
+  }
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-factorio-highlight;
+  }
+
+  /* Input — sunken/inset bevel */
+  .input {
+    @apply px-3 py-2 text-factorio-text text-sm focus:outline-none transition-colors;
+    background-color: theme('colors.factorio.input-bg');
+    border: 1px solid theme('colors.factorio.border');
+    box-shadow:
+      inset 1px 1px 0 theme('colors.factorio.shadow'),
+      inset -1px -1px 0 theme('colors.factorio.highlight');
+  }
+  .input:focus {
+    border-color: theme('colors.factorio.orange');
   }
 
   .label {
     @apply text-sm text-factorio-muted mb-1 block;
+  }
+
+  /* Semantic toast classes */
+  .toast-success {
+    @apply bg-green-900/60 border border-green-700 text-green-300 text-sm px-4 py-2;
+  }
+
+  .toast-error {
+    @apply bg-red-900/60 border border-red-700 text-red-300 text-sm px-4 py-2;
+  }
+
+  .toast-warn {
+    @apply bg-yellow-600/20 border border-yellow-600/40 text-yellow-400 text-sm px-4 py-3;
   }
 }

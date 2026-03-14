@@ -178,7 +178,7 @@ export default function RconConsole() {
       {/* Output area */}
       <div
         ref={outputRef}
-        className="flex-1 min-h-0 overflow-y-auto bg-factorio-darker border border-factorio-border rounded-lg p-4 font-mono text-sm mb-4"
+        className="flex-1 min-h-0 overflow-y-auto bg-factorio-darker border border-factorio-border p-4 font-mono text-sm mb-4"
       >
         {history.length === 0 ? (
           <p className="text-factorio-muted italic">

@@ -19,9 +19,21 @@ export default function Sidebar() {
   const { status } = useServerStatus();
 
   return (
-    <aside className="w-56 bg-factorio-dark border-r border-factorio-border flex flex-col h-full shrink-0">
+    <aside
+      className="w-56 bg-factorio-dark flex flex-col h-full shrink-0"
+      style={{
+        borderRight: '1px solid #1a1a1a',
+        boxShadow: 'inset -1px 0 0 #5a5a5a',
+      }}
+    >
       {/* Header */}
-      <div className="p-4 border-b border-factorio-border">
+      <div
+        className="p-4"
+        style={{
+          borderBottom: '1px solid #1a1a1a',
+          boxShadow: '0 1px 0 #5a5a5a',
+        }}
+      >
         <h1 className="text-factorio-orange font-bold text-lg">FactoryManager</h1>
         <div className="mt-2">
           <StatusIndicator status={status} size="sm" />
@@ -37,8 +49,8 @@ export default function Sidebar() {
             className={({ isActive }) =>
               `flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
                 isActive
-                  ? 'bg-factorio-panel text-factorio-orange border-r-2 border-factorio-orange'
-                  : 'text-factorio-muted hover:text-factorio-text hover:bg-factorio-panel/50'
+                  ? 'bg-factorio-orange text-factorio-darker font-semibold'
+                  : 'text-factorio-muted hover:text-factorio-text hover:bg-factorio-panel'
               }`
             }
           >
@@ -49,7 +61,13 @@ export default function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div className="p-3 border-t border-factorio-border text-xs text-factorio-muted">
+      <div
+        className="p-3 text-xs text-factorio-muted"
+        style={{
+          borderTop: '1px solid #1a1a1a',
+          boxShadow: '0 -1px 0 #5a5a5a',
+        }}
+      >
         v1.0.0
       </div>
     </aside>

@@ -140,7 +140,7 @@ export default function LogViewer() {
       <div
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 bg-factorio-darker border border-factorio-border rounded p-3 overflow-y-auto font-mono text-xs leading-relaxed select-text"
+        className="flex-1 min-h-0 bg-factorio-darker border border-factorio-border p-3 overflow-y-auto font-mono text-xs leading-relaxed select-text"
       >
         {filteredLogs.length === 0 ? (
           <p className="text-factorio-muted italic">

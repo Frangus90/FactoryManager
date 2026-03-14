@@ -25,6 +25,7 @@ export class ServerProcessManager extends EventEmitter {
   private status: ServerStatus = 'stopped';
   private child: ChildProcess | null = null;
   private activeProfile: ServerProfile | null = null;
+  private sessionId = 0;
 
   // ──────────────────────────────────────────────
   //  Public API
@@ -54,6 +55,7 @@ export class ServerProcessManager extends EventEmitter {
     const args = this.buildArgs(profile);
 
     // --- Transition to starting ---
+    this.sessionId++;
     this.setStatus('starting');
     this.activeProfile = profile;
 
@@ -75,7 +77,8 @@ export class ServerProcessManager extends EventEmitter {
         // Detect the server becoming ready for connections.
         if (line.includes('Hosting game at')) {
           this.setStatus('running');
-          this.autoConnectRcon(profile).catch((err) =>
+          const sid = this.sessionId;
+          this.autoConnectRcon(profile, sid).catch((err) =>
             this.emitLog('stderr', `RCON auto-connect error: ${err instanceof Error ? err.message : String(err)}`),
           );
         }
@@ -313,10 +316,10 @@ export class ServerProcessManager extends EventEmitter {
    * After the server reaches RUNNING state, attempt to connect the RCON
    * client with up to {@link RCON_CONNECT_MAX_RETRIES} retries.
    */
-  private async autoConnectRcon(profile: ServerProfile): Promise<void> {
+  private async autoConnectRcon(profile: ServerProfile, sid: number): Promise<void> {
     for (let attempt = 1; attempt <= RCON_CONNECT_MAX_RETRIES; attempt++) {
-      // Bail out if the server was stopped while we were waiting.
-      if (this.status !== 'running') return;
+      // Bail out if the server was stopped or restarted (new session).
+      if (this.status !== 'running' || this.sessionId !== sid) return;
 
       try {
         await rconClient.connect('127.0.0.1', profile.rconPort, profile.rconPassword);
@@ -331,6 +334,7 @@ export class ServerProcessManager extends EventEmitter {
 
         if (attempt < RCON_CONNECT_MAX_RETRIES) {
           await this.delay(RCON_CONNECT_RETRY_DELAY_MS);
+          if (this.sessionId !== sid) return;
         }
       }
     }
