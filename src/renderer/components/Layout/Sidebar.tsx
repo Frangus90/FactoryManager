@@ -12,7 +12,6 @@ const NAV_ITEMS = [
   { to: '/logs', label: 'Logs', icon: '📋' },
   { to: '/mods', label: 'Mods', icon: '🧩' },
   { to: '/players', label: 'Players', icon: '👥' },
-  { to: '/map-settings', label: 'Map Settings', icon: '🗺' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
   { to: '/help', label: 'Help & Guide', icon: '?' },
 ];

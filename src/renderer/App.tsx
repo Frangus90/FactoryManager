@@ -12,7 +12,6 @@ import RconConsole from './pages/RconConsole';
 import LogViewer from './pages/LogViewer';
 import ModManager from './pages/ModManager';
 import PlayerManager from './pages/PlayerManager';
-import MapSettings from './pages/MapSettings';
 import Settings from './pages/Settings';
 import Help from './pages/Help';
 
@@ -32,7 +31,6 @@ export default function App() {
             <Route path="/logs" element={<LogViewer />} />
             <Route path="/mods" element={<ModManager />} />
             <Route path="/players" element={<PlayerManager />} />
-            <Route path="/map-settings" element={<MapSettings />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/help" element={<Help />} />
           </Route>

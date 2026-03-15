@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProfile } from '../context/ProfileContext';
 import ConfirmDialog from '../components/ConfirmDialog';
+import NewSavePanel from '../components/NewSavePanel';
 import type { SaveFile, BackupEntry } from '../../shared/types';
 
 function formatFileSize(bytes: number): string {
@@ -28,7 +29,7 @@ export default function SaveManager() {
 
   // New save creation
   const [newSaveName, setNewSaveName] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [showNewSavePanel, setShowNewSavePanel] = useState(false);
 
   // Delete confirmation
   const [deleteTarget, setDeleteTarget] = useState<SaveFile | null>(null);
@@ -130,19 +131,9 @@ export default function SaveManager() {
     }
   };
 
-  const handleCreate = async () => {
-    const name = newSaveName.trim();
-    if (!name || !activeProfile) return;
-    setCreating(true);
-    try {
-      await window.electronAPI.saves.create(name, activeProfile.factorioPath, serverSavesDir || undefined);
-      setNewSaveName('');
-      await loadServerSaves();
-    } catch (err) {
-      console.error('Failed to create save:', err);
-    } finally {
-      setCreating(false);
-    }
+  const handleOpenNewSave = () => {
+    if (!newSaveName.trim() || !activeProfile) return;
+    setShowNewSavePanel(true);
   };
 
   const handleDeleteConfirm = async () => {
@@ -226,17 +217,16 @@ export default function SaveManager() {
             value={newSaveName}
             onChange={(e) => setNewSaveName(e.target.value)}
             placeholder="Enter save name"
-            disabled={creating}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleCreate();
+              if (e.key === 'Enter') handleOpenNewSave();
             }}
           />
           <button
             className="btn-primary"
-            onClick={handleCreate}
-            disabled={creating || !newSaveName.trim()}
+            onClick={handleOpenNewSave}
+            disabled={!newSaveName.trim()}
           >
-            {creating ? 'Creating...' : 'Create'}
+            Create
           </button>
         </div>
       </div>
@@ -502,6 +492,20 @@ export default function SaveManager() {
           }
         }}
         onCancel={() => setDeleteBackupTarget(null)}
+      />
+
+      {/* New save map settings panel */}
+      <NewSavePanel
+        open={showNewSavePanel}
+        saveName={newSaveName.trim()}
+        factorioPath={activeProfile.factorioPath}
+        serverSavesDir={serverSavesDir}
+        onCreated={() => {
+          setShowNewSavePanel(false);
+          setNewSaveName('');
+          loadServerSaves();
+        }}
+        onCancel={() => setShowNewSavePanel(false)}
       />
     </div>
   );
