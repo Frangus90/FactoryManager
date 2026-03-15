@@ -9,7 +9,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     name: 'FactoryManager',
-    // icon: './assets/icon', // Uncomment after adding assets/icon.ico
+    icon: './assets/icon',
   },
   rebuildConfig: {},
   makers: [

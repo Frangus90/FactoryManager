@@ -33,40 +33,8 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 function createTrayIcon(): Electron.NativeImage {
-  // 16x16 simple gear/factory icon as raw RGBA pixels
-  const size = 16;
-  const buffer = Buffer.alloc(size * size * 4, 0);
-
-  function setPixel(x: number, y: number, r: number, g: number, b: number, a = 255) {
-    if (x < 0 || x >= size || y < 0 || y >= size) return;
-    const offset = (y * size + x) * 4;
-    buffer[offset] = r;
-    buffer[offset + 1] = g;
-    buffer[offset + 2] = b;
-    buffer[offset + 3] = a;
-  }
-
-  // Orange "F" on dark background — simple and recognizable
-  // Background (dark gray)
-  for (let y = 2; y < 14; y++) {
-    for (let x = 2; x < 14; x++) {
-      setPixel(x, y, 36, 35, 36); // #242324
-    }
-  }
-  // Border
-  for (let i = 2; i < 14; i++) {
-    setPixel(i, 2, 90, 90, 90);
-    setPixel(i, 13, 90, 90, 90);
-    setPixel(2, i, 90, 90, 90);
-    setPixel(13, i, 90, 90, 90);
-  }
-  // "F" letter in Factorio orange (#e8911a)
-  const or = 232, og = 145, ob = 26;
-  for (let y = 4; y < 12; y++) setPixel(5, y, or, og, ob);
-  for (let x = 5; x < 11; x++) setPixel(x, 4, or, og, ob);
-  for (let x = 5; x < 10; x++) setPixel(x, 7, or, og, ob);
-
-  return nativeImage.createFromBuffer(buffer, { width: size, height: size });
+  const iconPath = path.join(app.getAppPath(), "assets", "icon.png");
+  return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
 }
 
 function buildTrayMenu(): Menu {
@@ -131,6 +99,7 @@ const createWindow = (): void => {
     minWidth: 900,
     minHeight: 600,
     title: 'FactoryManager',
+    icon: path.join(app.getAppPath(), 'assets', 'icon.png'),
     backgroundColor: '#242324',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
