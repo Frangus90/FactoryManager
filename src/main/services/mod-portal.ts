@@ -18,8 +18,6 @@ import { setModEnabled } from './mod-manager';
 
 const BASE_URL = 'https://mods.factorio.com';
 const API_BASE = `${BASE_URL}/api`;
-const ASSETS_BASE = 'https://assets-mod.factorio.com';
-
 // ---- HTTP helpers ----
 
 function httpsGet(url: string): Promise<{ statusCode: number; body: string }> {
@@ -94,14 +92,6 @@ function sendProgress(progress: DownloadProgress): void {
   for (const win of BrowserWindow.getAllWindows()) {
     win.webContents.send(IPC.MOD_PORTAL_DOWNLOAD_PROGRESS, progress);
   }
-}
-
-// ---- Resolve thumbnail URL ----
-
-export function resolveThumbnailUrl(thumbnailPath: string): string {
-  if (!thumbnailPath) return '';
-  if (thumbnailPath.startsWith('http')) return thumbnailPath;
-  return `${ASSETS_BASE}${thumbnailPath}`;
 }
 
 // ---- Catalog ----

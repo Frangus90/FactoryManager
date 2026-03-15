@@ -243,7 +243,7 @@ export interface PortalMod {
   summary: string;
   downloads_count: number;
   category: string;
-  thumbnail: string;
+  thumbnail?: string;
   latest_release: PortalRelease | null;
 }
 
