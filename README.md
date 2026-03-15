@@ -25,6 +25,11 @@ Styled to match Factorio's native UI.
 - Backup system with create/restore/delete
 - Auto-backup before server start with configurable max backups
 
+### Mod Portal integration
+- Browse, install, update, and manage mods from the official Factorio mod portal without leaving the app.
+- Full catalog cached client-side with search, sort, and lazy scroll.
+- Downloads verified with SHA1.
+- Auth auto-detected from game files with manual fallback.
 
 ### Configuration
 - Server settings editor (GUI for `server-settings.json`)
