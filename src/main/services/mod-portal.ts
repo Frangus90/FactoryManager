@@ -18,11 +18,33 @@ import { setModEnabled } from './mod-manager';
 
 const BASE_URL = 'https://mods.factorio.com';
 const API_BASE = `${BASE_URL}/api`;
+
+// ---- Version comparison ----
+
+function isNewerVersion(latest: string, installed: string): boolean {
+  const a = latest.split('.').map(Number);
+  const b = installed.split('.').map(Number);
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+  return false;
+}
+
 // ---- HTTP helpers ----
 
 function httpsGet(url: string): Promise<{ statusCode: number; body: string }> {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
+      // Follow redirects (up to 5)
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
+        res.resume();
+        httpsGet(res.headers.location).then(resolve, reject);
+        return;
+      }
+
       const chunks: Buffer[] = [];
       res.on('data', (chunk: Buffer) => chunks.push(chunk));
       res.on('end', () => {
@@ -40,18 +62,27 @@ function httpsDownload(
   url: string,
   destPath: string,
   onProgress: (percent: number) => void,
+  maxRedirects = 5,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
       if (res.statusCode === 302 || res.statusCode === 301) {
+        res.resume();
         const location = res.headers.location;
-        if (location) {
-          httpsDownload(location, destPath, onProgress).then(resolve, reject);
+        if (!location) {
+          reject(new Error('Redirect without location header'));
           return;
         }
+        if (maxRedirects <= 0) {
+          reject(new Error('Too many redirects'));
+          return;
+        }
+        httpsDownload(location, destPath, onProgress, maxRedirects - 1).then(resolve, reject);
+        return;
       }
 
       if (res.statusCode !== 200) {
+        res.resume();
         reject(new Error(`Download failed with status ${res.statusCode}`));
         return;
       }
@@ -86,6 +117,16 @@ function httpsDownload(
   });
 }
 
+// ---- Safe JSON parse ----
+
+function parseJsonResponse(body: string, statusCode: number): unknown {
+  try {
+    return JSON.parse(body);
+  } catch {
+    throw new Error(`Mod portal returned invalid JSON (status ${statusCode})`);
+  }
+}
+
 // ---- Send progress to renderer ----
 
 function sendProgress(progress: DownloadProgress): void {
@@ -93,6 +134,10 @@ function sendProgress(progress: DownloadProgress): void {
     win.webContents.send(IPC.MOD_PORTAL_DOWNLOAD_PROGRESS, progress);
   }
 }
+
+// ---- Download concurrency guard ----
+
+const activeDownloads = new Map<string, Promise<string>>();
 
 // ---- Catalog ----
 
@@ -104,8 +149,8 @@ export async function fetchCatalog(factorioVersion: string): Promise<PortalMod[]
     throw new Error(`Mod portal returned status ${statusCode}`);
   }
 
-  const data = JSON.parse(body);
-  return data.results as PortalMod[];
+  const data = parseJsonResponse(body, statusCode) as { results?: PortalMod[] };
+  return data.results ?? [];
 }
 
 // ---- Mod Details ----
@@ -118,7 +163,7 @@ export async function fetchModDetails(modName: string): Promise<PortalModFull> {
     throw new Error(`Mod portal returned status ${statusCode} for ${modName}`);
   }
 
-  return JSON.parse(body) as PortalModFull;
+  return parseJsonResponse(body, statusCode) as PortalModFull;
 }
 
 // ---- Download + Install ----
@@ -135,10 +180,32 @@ export async function downloadMod(
   modsDir: string,
   auth: ModPortalAuth,
 ): Promise<string> {
+  // Concurrency guard: if already downloading this mod, return existing promise
+  const existing = activeDownloads.get(modName);
+  if (existing) return existing;
+
+  const promise = doDownload(modName, release, modsDir, auth);
+  activeDownloads.set(modName, promise);
+  promise.finally(() => activeDownloads.delete(modName));
+  return promise;
+}
+
+async function doDownload(
+  modName: string,
+  release: PortalRelease,
+  modsDir: string,
+  auth: ModPortalAuth,
+): Promise<string> {
   const downloadUrl = `${BASE_URL}${release.download_url}?username=${encodeURIComponent(auth.username)}&token=${encodeURIComponent(auth.token)}`;
   const destFileName = release.file_name;
-  const tempPath = path.join(modsDir, `${destFileName}.tmp`);
-  const finalPath = path.join(modsDir, destFileName);
+
+  // Path traversal guard
+  const resolvedDir = path.resolve(modsDir);
+  const finalPath = path.resolve(modsDir, destFileName);
+  if (!finalPath.startsWith(resolvedDir + path.sep)) {
+    throw new Error('Invalid file name: path traversal detected');
+  }
+  const tempPath = finalPath + '.tmp';
 
   sendProgress({ modName, phase: 'downloading', percent: 0 });
 
@@ -200,7 +267,7 @@ export async function checkUpdates(
     throw new Error(`Mod portal returned status ${statusCode}`);
   }
 
-  const data = JSON.parse(body);
+  const data = parseJsonResponse(body, statusCode) as { results?: PortalMod[] };
   const portalMods: PortalMod[] = data.results ?? [];
 
   const updates: ModUpdate[] = [];
@@ -216,7 +283,8 @@ export async function checkUpdates(
     // Only suggest updates that match current factorio version
     if (latestFactorioVersion && latestFactorioVersion !== factorioVersion) continue;
 
-    if (latestVersion !== installed.version) {
+    // Only suggest if portal version is strictly newer (not just different)
+    if (isNewerVersion(latestVersion, installed.version)) {
       updates.push({
         name: portalMod.name,
         title: portalMod.title,

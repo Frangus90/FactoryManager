@@ -377,6 +377,7 @@ function PortalTab({
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [displayCount, setDisplayCount] = useState(50);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const expandingRef = useRef<string | null>(null);
 
   // Reset display count on search/sort change
   useEffect(() => {
@@ -387,18 +388,24 @@ function PortalTab({
     if (expandedMod === modName) {
       setExpandedMod(null);
       setModDetails(null);
+      expandingRef.current = null;
       return;
     }
     setExpandedMod(modName);
     setModDetails(null);
     setDetailsLoading(true);
+    expandingRef.current = modName;
     try {
       const details = await window.electronAPI.modPortal.fetchDetails(modName);
-      setModDetails(details);
+      if (expandingRef.current === modName) {
+        setModDetails(details);
+      }
     } catch {
       // Failed to load details
     } finally {
-      setDetailsLoading(false);
+      if (expandingRef.current === modName) {
+        setDetailsLoading(false);
+      }
     }
   };
 
@@ -433,9 +440,9 @@ function PortalTab({
     const el = scrollRef.current;
     if (!el || !hasMore) return;
     if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
-      setDisplayCount((prev) => Math.min(prev + 50, sorted.length));
+      setDisplayCount((prev) => prev + 50);
     }
-  }, [hasMore, sorted.length]);
+  }, [hasMore]);
 
   return (
     <>
@@ -757,8 +764,13 @@ export default function ModManager() {
     }
   }, [factorioVersion]);
 
-  // Auto-fetch catalog when switching to browse tab (once)
+  // Reset catalog when factorio version changes (e.g. profile switch)
   const catalogFetched = useRef(false);
+  useEffect(() => {
+    catalogFetched.current = false;
+  }, [factorioVersion]);
+
+  // Auto-fetch catalog when switching to browse tab (once per version)
   useEffect(() => {
     if (tab === 'browse' && !catalogFetched.current && factorioVersion) {
       catalogFetched.current = true;
@@ -777,12 +789,18 @@ export default function ModManager() {
     }
   }, [modsDir, factorioVersion]);
 
-  // Auto-check updates when mods are loaded and we have a version
+  // Auto-check updates only on initial load and version change (not on every mod list refresh)
+  const updatesChecked = useRef(false);
   useEffect(() => {
-    if (mods.length > 0 && factorioVersion) {
+    updatesChecked.current = false;
+  }, [factorioVersion]);
+
+  useEffect(() => {
+    if (mods.length > 0 && factorioVersion && !updatesChecked.current) {
+      updatesChecked.current = true;
       checkUpdates();
     }
-  }, [mods, factorioVersion, checkUpdates]);
+  }, [mods.length, factorioVersion, checkUpdates]);
 
   // Install a mod from portal
   const handleInstall = useCallback(
@@ -801,29 +819,31 @@ export default function ModManager() {
     [modsDir, loadMods],
   );
 
-  // Install an update
+  // Install an update: download new version first, then delete old
   const handleInstallUpdate = useCallback(
     async (update: ModUpdate) => {
       if (!modsDir) return;
-      // Delete old version first
-      const oldMod = mods.find((m) => m.name === update.name);
-      if (oldMod) {
-        try {
-          await window.electronAPI.mods.delete(modsDir, oldMod.fileName);
-        } catch {
-          // Old file may already be gone
-        }
-      }
       setDownloadingMods((prev) => new Set(prev).add(update.name));
       try {
+        // Download new version first (files have different names due to version in filename)
         await window.electronAPI.modPortal.download(update.name, update.release, modsDir);
+
+        // Only now delete the old version (fetch fresh list to avoid stale closure)
+        const currentMods = await window.electronAPI.mods.list(modsDir);
+        const oldMod = currentMods.find(
+          (m) => m.name === update.name && m.fileName !== update.release.file_name,
+        );
+        if (oldMod) {
+          await window.electronAPI.mods.delete(modsDir, oldMod.fileName).catch(() => {});
+        }
+
         setToast(`Updated ${update.title} to v${update.latestVersion}`);
         await loadMods();
       } catch (err) {
         console.error('Update failed:', err);
       }
     },
-    [modsDir, mods, loadMods],
+    [modsDir, loadMods],
   );
 
   // Update all

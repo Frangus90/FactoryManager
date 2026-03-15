@@ -11,9 +11,9 @@ interface PlayerData {
   'service-token'?: string;
 }
 
-const store = new Store<{ modPortalAuth: ModPortalAuth | null }>({
+const store = new Store<{ modPortalAuth: ModPortalAuth | null; authDisabled: boolean }>({
   name: 'mod-portal-auth',
-  defaults: { modPortalAuth: null },
+  defaults: { modPortalAuth: null, authDisabled: false },
 });
 
 async function readPlayerData(): Promise<ModPortalAuth | null> {
@@ -33,20 +33,25 @@ async function readPlayerData(): Promise<ModPortalAuth | null> {
 }
 
 export async function getCredentials(): Promise<ModPortalAuth | null> {
-  // Try auto-detect from game files first
-  const autoDetected = await readPlayerData();
-  if (autoDetected) return autoDetected;
+  // If user explicitly disabled auth, return null
+  if (store.get('authDisabled')) return null;
 
-  // Fall back to manually stored credentials
-  return store.get('modPortalAuth') ?? null;
+  // Try manual credentials first (user explicitly set these)
+  const manual = store.get('modPortalAuth');
+  if (manual) return manual;
+
+  // Fall back to auto-detect from game files
+  return readPlayerData();
 }
 
 export function setManualCredentials(username: string, token: string): void {
   store.set('modPortalAuth', { username, token });
+  store.set('authDisabled', false);
 }
 
 export function clearCredentials(): void {
   store.set('modPortalAuth', null);
+  store.set('authDisabled', true);
 }
 
 export async function hasCredentials(): Promise<boolean> {

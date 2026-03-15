@@ -1043,7 +1043,8 @@ export default function Settings() {
                 className="btn-secondary text-xs"
                 onClick={async () => {
                   await window.electronAPI.modPortal.clearAuth();
-                  setPortalAuth(null);
+                  const freshAuth = await window.electronAPI.modPortal.getAuth();
+                  setPortalAuth(freshAuth);
                   setManualUsername('');
                   setManualToken('');
                 }}
