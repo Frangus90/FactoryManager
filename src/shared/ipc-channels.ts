@@ -85,6 +85,16 @@ export const IPC = {
   UPNP_GET_STATUS: 'upnp:getStatus',
   UPNP_STATUS_CHANGE: 'upnp:statusChange',
 
+  // Mod portal
+  MOD_PORTAL_GET_AUTH: 'modPortal:getAuth',
+  MOD_PORTAL_SET_AUTH: 'modPortal:setAuth',
+  MOD_PORTAL_CLEAR_AUTH: 'modPortal:clearAuth',
+  MOD_PORTAL_FETCH_CATALOG: 'modPortal:fetchCatalog',
+  MOD_PORTAL_FETCH_DETAILS: 'modPortal:fetchDetails',
+  MOD_PORTAL_DOWNLOAD: 'modPortal:download',
+  MOD_PORTAL_CHECK_UPDATES: 'modPortal:checkUpdates',
+  MOD_PORTAL_DOWNLOAD_PROGRESS: 'modPortal:downloadProgress',
+
   // App settings
   APP_SETTINGS_GET: 'appSettings:get',
   APP_SETTINGS_UPDATE: 'appSettings:update',

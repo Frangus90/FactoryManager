@@ -9,6 +9,7 @@ import { registerAppSettingsIpc } from './app-settings.ipc';
 import { registerBackupsIpc } from './backups.ipc';
 import { registerMapSettingsIpc } from './map-settings.ipc';
 import { registerUpnpIpc } from './upnp.ipc';
+import { registerModPortalIpc } from './mod-portal.ipc';
 
 export function registerAllIpc(): void {
   registerProfileIpc();
@@ -22,4 +23,5 @@ export function registerAllIpc(): void {
   registerBackupsIpc();
   registerMapSettingsIpc();
   registerUpnpIpc();
+  registerModPortalIpc();
 }

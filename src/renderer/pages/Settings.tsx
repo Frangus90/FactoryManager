@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useProfile } from '../context/ProfileContext';
-import type { ServerProfile, AppSettings, RestartSchedule, ScheduledCommand } from '../../shared/types';
+import type { ServerProfile, AppSettings, RestartSchedule, ScheduledCommand, ModPortalAuth } from '../../shared/types';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -624,8 +624,19 @@ export default function Settings() {
   // App settings state
   const [appSettings, setAppSettings] = useState<AppSettings | null>(null);
 
+  // Mod portal auth state
+  const [portalAuth, setPortalAuth] = useState<ModPortalAuth | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [manualUsername, setManualUsername] = useState('');
+  const [manualToken, setManualToken] = useState('');
+  const [authSaving, setAuthSaving] = useState(false);
+
   useEffect(() => {
     window.electronAPI.appSettings.get().then(setAppSettings);
+    window.electronAPI.modPortal.getAuth().then((auth) => {
+      setPortalAuth(auth);
+      setAuthLoading(false);
+    });
   }, []);
 
   const updateAppSetting = useCallback(async (partial: Partial<AppSettings>) => {
@@ -1008,6 +1019,88 @@ export default function Settings() {
             </div>
           </div>
         )}
+
+        {/* ---- Factorio Account (Mod Portal Auth) ---- */}
+        <div className="card">
+          <h3 className="text-factorio-orange font-semibold text-sm mb-4">
+            Factorio Account
+          </h3>
+          <p className="text-xs text-factorio-muted mb-4">
+            Required for downloading mods from the mod portal. Credentials are auto-detected from your Factorio game installation. Set them manually if auto-detection fails.
+          </p>
+
+          {authLoading ? (
+            <p className="text-sm text-factorio-muted">Checking credentials...</p>
+          ) : portalAuth ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="text-green-400 text-sm">&#10003;</span>
+                <span className="text-sm text-factorio-text">
+                  Logged in as <span className="font-medium text-factorio-orange">{portalAuth.username}</span>
+                </span>
+              </div>
+              <button
+                className="btn-secondary text-xs"
+                onClick={async () => {
+                  await window.electronAPI.modPortal.clearAuth();
+                  setPortalAuth(null);
+                  setManualUsername('');
+                  setManualToken('');
+                }}
+              >
+                Clear Saved Credentials
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-factorio-muted text-sm">&#10007;</span>
+                <span className="text-sm text-factorio-muted">
+                  No credentials detected. Enter your Factorio username and token below.
+                </span>
+              </div>
+              <div>
+                <label className="label">Username</label>
+                <input
+                  className="input w-full"
+                  type="text"
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value)}
+                  placeholder="Factorio username"
+                />
+              </div>
+              <div>
+                <label className="label">Token</label>
+                <PasswordInput
+                  value={manualToken}
+                  onChange={setManualToken}
+                  placeholder="Token from player-data.json or factorio.com/profile"
+                />
+              </div>
+              <button
+                className="btn-primary text-xs"
+                disabled={!manualUsername.trim() || !manualToken.trim() || authSaving}
+                onClick={async () => {
+                  setAuthSaving(true);
+                  try {
+                    await window.electronAPI.modPortal.setAuth(
+                      manualUsername.trim(),
+                      manualToken.trim(),
+                    );
+                    setPortalAuth({ username: manualUsername.trim(), token: manualToken.trim() });
+                    setToast('Mod portal credentials saved.');
+                  } catch {
+                    setToast('Failed to save credentials.');
+                  } finally {
+                    setAuthSaving(false);
+                  }
+                }}
+              >
+                {authSaving ? 'Saving...' : 'Save Credentials'}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

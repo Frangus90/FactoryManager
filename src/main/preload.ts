@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC } from '../shared/ipc-channels';
-import type { ServerStatus, RconStatus, LogEntry, AutoRestartInfo, ServerProfile, ServerSettings, SaveFile, ModInfo, BanEntry, AppSettings, ServerEvent, ServerStats, BackupEntry, UpnpStatus, MapSettings, MapGenSettings } from '../shared/types';
+import type { ServerStatus, RconStatus, LogEntry, AutoRestartInfo, ServerProfile, ServerSettings, SaveFile, ModInfo, BanEntry, AppSettings, ServerEvent, ServerStats, BackupEntry, UpnpStatus, MapSettings, MapGenSettings, ModPortalAuth, PortalMod, PortalModFull, PortalRelease, ModUpdate, DownloadProgress } from '../shared/types';
 
 type UnsubscribeFn = () => void;
 
@@ -162,6 +162,25 @@ const api = {
       ipcRenderer.invoke(IPC.UPNP_GET_STATUS),
     onStatusChange: (cb: (status: UpnpStatus) => void): UnsubscribeFn =>
       onEvent(IPC.UPNP_STATUS_CHANGE, cb),
+  },
+
+  modPortal: {
+    getAuth: (): Promise<ModPortalAuth | null> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_GET_AUTH),
+    setAuth: (username: string, token: string): Promise<void> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_SET_AUTH, username, token),
+    clearAuth: (): Promise<void> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_CLEAR_AUTH),
+    fetchCatalog: (factorioVersion: string): Promise<PortalMod[]> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_FETCH_CATALOG, factorioVersion),
+    fetchDetails: (modName: string): Promise<PortalModFull> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_FETCH_DETAILS, modName),
+    download: (modName: string, release: PortalRelease, modsDir: string): Promise<string> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_DOWNLOAD, modName, release, modsDir),
+    checkUpdates: (modsDir: string, factorioVersion: string): Promise<ModUpdate[]> =>
+      ipcRenderer.invoke(IPC.MOD_PORTAL_CHECK_UPDATES, modsDir, factorioVersion),
+    onDownloadProgress: (cb: (progress: DownloadProgress) => void): UnsubscribeFn =>
+      onEvent(IPC.MOD_PORTAL_DOWNLOAD_PROGRESS, cb),
   },
 
   appSettings: {

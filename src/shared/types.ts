@@ -222,6 +222,58 @@ export interface MapGenSettings {
   [key: string]: unknown;
 }
 
+// ---- Mod Portal ----
+
+export interface PortalRelease {
+  download_url: string;
+  file_name: string;
+  version: string;
+  sha1: string;
+  released_at: string;
+  info_json: {
+    factorio_version: string;
+    dependencies?: string[];
+  };
+}
+
+export interface PortalMod {
+  name: string;
+  title: string;
+  owner: string;
+  summary: string;
+  downloads_count: number;
+  category: string;
+  thumbnail: string;
+  latest_release: PortalRelease | null;
+}
+
+export interface PortalModFull extends PortalMod {
+  description: string;
+  changelog: string;
+  releases: PortalRelease[];
+  images: { id: string; url: string; thumbnail: string }[];
+}
+
+export interface ModUpdate {
+  name: string;
+  title: string;
+  installedVersion: string;
+  latestVersion: string;
+  release: PortalRelease;
+}
+
+export interface ModPortalAuth {
+  username: string;
+  token: string;
+}
+
+export interface DownloadProgress {
+  modName: string;
+  phase: 'downloading' | 'verifying' | 'complete' | 'error';
+  percent: number;
+  error?: string;
+}
+
 // ---- Players ----
 
 export interface BanEntry {
