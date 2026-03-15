@@ -33,8 +33,10 @@ let tray: Tray | null = null;
 let isQuitting = false;
 
 function createTrayIcon(): Electron.NativeImage {
-  const iconPath = path.join(app.getAppPath(), "assets", "icon.png");
-  return nativeImage.createFromPath(iconPath).resize({ width: 16, height: 16 });
+  // Use ICO on Windows (proper multi-res), PNG elsewhere
+  const ext = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
+  const iconPath = path.join(app.getAppPath(), 'assets', ext);
+  return nativeImage.createFromPath(iconPath);
 }
 
 function buildTrayMenu(): Menu {

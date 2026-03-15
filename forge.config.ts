@@ -15,6 +15,7 @@ const config: ForgeConfig = {
   makers: [
     new MakerSquirrel({
       name: 'FactoryManager',
+      setupIcon: './assets/icon.ico',
     }),
     new MakerZIP({}, ['win32']),
   ],
