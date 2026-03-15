@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
+import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
 import { registerAllIpc } from './ipc';
@@ -32,11 +33,15 @@ let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 let isQuitting = false;
 
-function createTrayIcon(): Electron.NativeImage {
-  // Use ICO on Windows (proper multi-res), PNG elsewhere
+function getIconPath(): string {
   const ext = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
-  const iconPath = path.join(app.getAppPath(), 'assets', ext);
-  return nativeImage.createFromPath(iconPath);
+  return path.join(app.getAppPath(), 'assets', ext);
+}
+
+function createTrayIcon(): Electron.NativeImage {
+  // Use fs.readFileSync which is asar-aware (nativeImage.createFromPath is not)
+  const buf = fs.readFileSync(getIconPath());
+  return nativeImage.createFromBuffer(buf);
 }
 
 function buildTrayMenu(): Menu {
@@ -101,7 +106,7 @@ const createWindow = (): void => {
     minWidth: 900,
     minHeight: 600,
     title: 'FactoryManager',
-    icon: path.join(app.getAppPath(), 'assets', 'icon.png'),
+    icon: nativeImage.createFromBuffer(fs.readFileSync(getIconPath())),
     backgroundColor: '#242324',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
