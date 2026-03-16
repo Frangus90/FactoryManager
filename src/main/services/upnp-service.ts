@@ -2,11 +2,16 @@ import { EventEmitter } from 'events';
 import { Client } from '@runonflux/nat-upnp';
 import type { UpnpStatus } from '../../shared/types';
 
+const UPNP_TTL_SECONDS = 3600; // 1 hour — auto-expires if app crashes
+const UPNP_RENEW_INTERVAL_MS = 45 * 60 * 1000; // 45 minutes
+
 class UpnpService extends EventEmitter {
   private status: UpnpStatus = 'idle';
   private mappedPort: number | null = null;
   private mappedProtocol: string | null = null;
   private client: Client | null = null;
+  private renewTimer: ReturnType<typeof setInterval> | null = null;
+  private mappedDescription: string | null = null;
 
   getStatus(): UpnpStatus {
     return this.status;
@@ -30,12 +35,27 @@ class UpnpService extends EventEmitter {
         public: port,
         private: port,
         protocol: protocol.toUpperCase(),
-        ttl: 0,
+        ttl: UPNP_TTL_SECONDS,
         description,
       });
       this.mappedPort = port;
       this.mappedProtocol = protocol.toUpperCase();
+      this.mappedDescription = description;
       this.setStatus('mapped');
+
+      // Periodically renew the mapping before TTL expires
+      this.renewTimer = setInterval(() => {
+        if (!this.client || this.mappedPort === null) return;
+        this.client.createMapping({
+          public: this.mappedPort,
+          private: this.mappedPort,
+          protocol: this.mappedProtocol || 'UDP',
+          ttl: UPNP_TTL_SECONDS,
+          description: this.mappedDescription || 'FactoryManager',
+        }).catch((err) => {
+          console.error('UPnP renewal failed:', err instanceof Error ? err.message : String(err));
+        });
+      }, UPNP_RENEW_INTERVAL_MS);
     } catch (err) {
       this.setStatus('error');
       throw new Error(`UPnP mapping failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -57,10 +77,15 @@ class UpnpService extends EventEmitter {
       console.error('UPnP unmap failed:', err instanceof Error ? err.message : String(err));
     }
 
+    if (this.renewTimer) {
+      clearInterval(this.renewTimer);
+      this.renewTimer = null;
+    }
     this.client.close();
     this.client = null;
     this.mappedPort = null;
     this.mappedProtocol = null;
+    this.mappedDescription = null;
     this.setStatus('idle');
   }
 }

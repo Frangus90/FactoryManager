@@ -93,7 +93,13 @@ export async function listBackups(backupDir?: string | null): Promise<BackupEntr
   return results.sort((a, b) => b.timestamp - a.timestamp);
 }
 
-export async function restoreBackup(backupPath: string, savesDir: string): Promise<void> {
+export async function restoreBackup(backupPath: string, savesDir: string, backupDir?: string | null): Promise<void> {
+  const baseDir = backupDir || defaultBackupDir();
+  const resolved = path.resolve(backupPath);
+  if (!resolved.startsWith(path.resolve(baseDir) + path.sep)) {
+    throw new Error('Path traversal blocked');
+  }
+
   await fsp.mkdir(savesDir, { recursive: true });
 
   const entries = await fsp.readdir(backupPath);
@@ -107,7 +113,7 @@ export async function restoreBackup(backupPath: string, savesDir: string): Promi
 export async function deleteBackup(backupPath: string, backupDir?: string | null): Promise<void> {
   const baseDir = backupDir || defaultBackupDir();
   const resolved = path.resolve(backupPath);
-  if (!resolved.startsWith(path.resolve(baseDir))) {
+  if (!resolved.startsWith(path.resolve(baseDir) + path.sep)) {
     throw new Error('Path traversal blocked');
   }
   await fsp.rm(resolved, { recursive: true, force: true });

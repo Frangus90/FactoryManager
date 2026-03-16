@@ -4,21 +4,26 @@ import { IPC } from '../../shared/ipc-channels';
 import { readServerSettings, writeServerSettings } from '../services/config-manager';
 import type { ServerSettings } from '../../shared/types';
 
-function assertJsonFile(filePath: string): void {
+const ALLOWED_CONFIG_NAMES = new Set([
+  'server-settings.json',
+]);
+
+function assertAllowedConfigFile(filePath: string): void {
   const resolved = path.resolve(filePath);
-  if (!resolved.endsWith('.json')) {
-    throw new Error('Invalid config path: must be a .json file');
+  const baseName = path.basename(resolved);
+  if (!ALLOWED_CONFIG_NAMES.has(baseName)) {
+    throw new Error(`Invalid config path: unexpected file name "${baseName}"`);
   }
 }
 
 export function registerConfigIpc(): void {
   ipcMain.handle(IPC.CONFIG_READ, async (_, filePath: string) => {
-    assertJsonFile(filePath);
+    assertAllowedConfigFile(filePath);
     return readServerSettings(filePath);
   });
 
   ipcMain.handle(IPC.CONFIG_WRITE, async (_, filePath: string, settings: ServerSettings) => {
-    assertJsonFile(filePath);
+    assertAllowedConfigFile(filePath);
     return writeServerSettings(filePath, settings);
   });
 }

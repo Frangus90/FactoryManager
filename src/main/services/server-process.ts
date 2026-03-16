@@ -32,6 +32,7 @@ export class ServerProcessManager extends EventEmitter {
   private crashTimestamps: number[] = [];
   private autoRestartTimer: ReturnType<typeof setTimeout> | null = null;
   private autoRestartCountdownTimer: ReturnType<typeof setInterval> | null = null;
+  private stopPromise: Promise<void> | null = null;
 
   // ──────────────────────────────────────────────
   //  Public API
@@ -141,12 +142,23 @@ export class ServerProcessManager extends EventEmitter {
    * 3. Force-kill the process if it is still running after the timeout.
    */
   async stop(): Promise<void> {
+    // Re-entrancy guard: if already stopping, return the in-flight promise.
+    if (this.stopPromise) return this.stopPromise;
+
     if (!this.child) {
-      // Nothing to stop; ensure we are in a clean state.
       this.setStatus('stopped');
       return;
     }
 
+    this.stopPromise = this.doStop();
+    try {
+      await this.stopPromise;
+    } finally {
+      this.stopPromise = null;
+    }
+  }
+
+  private async doStop(): Promise<void> {
     this.setStatus('stopping');
 
     // Attempt a graceful shutdown through RCON.

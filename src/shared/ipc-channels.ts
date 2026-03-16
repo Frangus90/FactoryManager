@@ -98,4 +98,11 @@ export const IPC = {
   // App settings
   APP_SETTINGS_GET: 'appSettings:get',
   APP_SETTINGS_UPDATE: 'appSettings:update',
+
+  // Window controls
+  WINDOW_MINIMIZE: 'window:minimize',
+  WINDOW_MAXIMIZE: 'window:maximize',
+  WINDOW_CLOSE: 'window:close',
+  WINDOW_IS_MAXIMIZED: 'window:isMaximized',
+  WINDOW_MAXIMIZE_CHANGE: 'window:maximizeChange',
 } as const;

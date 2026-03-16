@@ -20,7 +20,8 @@ export function registerBackupsIpc(): void {
   });
 
   ipcMain.handle(IPC.BACKUPS_RESTORE, async (_, backupPath: string) => {
-    return restoreBackup(backupPath, serverSavesDir());
+    const settings = getAppSettings();
+    return restoreBackup(backupPath, serverSavesDir(), settings.backupDir);
   });
 
   ipcMain.handle(IPC.BACKUPS_DELETE, async (_, backupPath: string) => {

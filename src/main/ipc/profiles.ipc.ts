@@ -8,7 +8,7 @@ import { IPC } from '../../shared/ipc-channels';
 import type { ServerProfile } from '../../shared/types';
 import * as profileStore from '../services/profile-store';
 import { detectFactorioPath } from '../services/path-detector';
-import { resolveUserDataPath, FACTORIO_EXE_RELATIVE } from '../util/constants';
+import { resolveUserDataPath, FACTORIO_EXE_RELATIVE, DEFAULT_RCON_PORT, DEFAULT_SERVER_PORT, generateRconPassword } from '../util/constants';
 import { rescheduleIfActive } from '../services/restart-scheduler';
 import { rescheduleCommandsIfActive } from '../services/command-scheduler';
 
@@ -168,11 +168,29 @@ export function registerProfileIpc(): void {
     });
     if (result.canceled || !result.filePaths[0]) return null;
     const raw = fs.readFileSync(result.filePaths[0], 'utf-8');
-    const data = JSON.parse(raw) as Omit<ServerProfile, 'id'>;
-    // Validate required fields
-    if (!data.name || !data.factorioPath) {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed.name || !parsed.factorioPath) {
       throw new Error('Invalid profile: missing name or factorioPath');
     }
+    // Merge with defaults to fill missing fields from older exports
+    const defaults: Omit<ServerProfile, 'id'> = {
+      name: '',
+      factorioPath: '',
+      selectedSave: null,
+      useLatestSave: true,
+      rconPort: DEFAULT_RCON_PORT,
+      rconPassword: generateRconPassword(),
+      serverPort: DEFAULT_SERVER_PORT,
+      serverSettingsPath: null,
+      adminListPath: null,
+      banListPath: null,
+      whitelistPath: null,
+      autoRestart: false,
+      restartSchedule: { type: 'off', intervalHours: 6, dailyTime: '04:00' },
+      scheduledCommands: [],
+    };
+    const { id: _id, ...rest } = parsed as Record<string, unknown> & { id?: string };
+    const data = { ...defaults, ...rest } as Omit<ServerProfile, 'id'>;
     return profileStore.createProfile(data);
   });
 

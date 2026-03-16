@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage } from 'electron';
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, session, shell } from 'electron';
 import fs from 'fs';
 import path from 'path';
 import { spawn } from 'child_process';
@@ -11,6 +11,7 @@ import { initCommandScheduler } from './services/command-scheduler';
 import { resourceMonitor } from './services/resource-monitor';
 import { getAppSettings } from './services/app-settings-store';
 import * as profileStore from './services/profile-store';
+import { IPC } from '../shared/ipc-channels';
 
 // Handle Squirrel.Windows installer events (shortcuts on install/update/uninstall).
 if (process.platform === 'win32') {
@@ -108,6 +109,7 @@ const createWindow = (): void => {
     title: 'FactoryManager',
     icon: nativeImage.createFromBuffer(fs.readFileSync(getIconPath())),
     backgroundColor: '#242324',
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -115,12 +117,30 @@ const createWindow = (): void => {
     },
   });
 
+  // Remove the default application menu
+  Menu.setApplicationMenu(null);
+
   // Load the renderer
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
     mainWindow.loadFile(path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`));
   }
+
+  // Navigation guards -- prevent renderer from navigating to external URLs
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const devServer = MAIN_WINDOW_VITE_DEV_SERVER_URL ?? '';
+    if (!url.startsWith('file://') && (!devServer || !url.startsWith(devServer))) {
+      event.preventDefault();
+    }
+  });
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Open external links in the default browser instead of a new Electron window
+    if (url.startsWith('https://') || url.startsWith('http://')) {
+      shell.openExternal(url);
+    }
+    return { action: 'deny' };
+  });
 
   // Close-to-tray behavior
   mainWindow.on('close', (e) => {
@@ -140,14 +160,47 @@ const createWindow = (): void => {
     }
     updateTray();
   });
+
+  // Forward maximize/unmaximize events to renderer
+  mainWindow.on('maximize', () => {
+    mainWindow?.webContents.send(IPC.WINDOW_MAXIMIZE_CHANGE, true);
+  });
+  mainWindow.on('unmaximize', () => {
+    mainWindow?.webContents.send(IPC.WINDOW_MAXIMIZE_CHANGE, false);
+  });
 };
 
 app.on('ready', () => {
+  // Content Security Policy
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https://assets-mod.factorio.com; connect-src 'self'",
+        ],
+      },
+    });
+  });
+
   registerAllIpc();
   initNotificationService();
   initRestartScheduler();
   initCommandScheduler();
   resourceMonitor.init();
+
+  // Window control IPC handlers
+  ipcMain.on(IPC.WINDOW_MINIMIZE, () => mainWindow?.minimize());
+  ipcMain.on(IPC.WINDOW_MAXIMIZE, () => {
+    if (mainWindow?.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow?.maximize();
+    }
+  });
+  ipcMain.on(IPC.WINDOW_CLOSE, () => mainWindow?.close());
+  ipcMain.handle(IPC.WINDOW_IS_MAXIMIZED, () => mainWindow?.isMaximized() ?? false);
+
   createWindow();
 
   // Auto-start server if enabled
@@ -181,6 +234,9 @@ app.on('window-all-closed', () => {
   // If close-to-tray is enabled and window was just hidden, don't quit
   const settings = getAppSettings();
   if (settings.closeToTray && tray) return;
+
+  // Cancel any pending auto-restart timers before quitting
+  serverProcess.cancelAutoRestart();
 
   const serverStatus = serverProcess.getStatus();
   if (serverStatus === 'running' || serverStatus === 'starting') {

@@ -1,6 +1,6 @@
 import https from 'https';
 import fs from 'fs/promises';
-import { createWriteStream } from 'fs';
+import { createWriteStream, createReadStream } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { BrowserWindow } from 'electron';
@@ -22,8 +22,9 @@ const API_BASE = `${BASE_URL}/api`;
 // ---- Version comparison ----
 
 function isNewerVersion(latest: string, installed: string): boolean {
-  const a = latest.split('.').map(Number);
-  const b = installed.split('.').map(Number);
+  const parse = (v: string) => v.split('.').map((s) => parseInt(s, 10) || 0);
+  const a = parse(latest);
+  const b = parse(installed);
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const av = a[i] ?? 0;
     const bv = b[i] ?? 0;
@@ -35,13 +36,16 @@ function isNewerVersion(latest: string, installed: string): boolean {
 
 // ---- HTTP helpers ----
 
-function httpsGet(url: string): Promise<{ statusCode: number; body: string }> {
+function httpsGet(url: string, maxRedirects = 5): Promise<{ statusCode: number; body: string }> {
   return new Promise((resolve, reject) => {
     https.get(url, (res) => {
-      // Follow redirects (up to 5)
       if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location) {
         res.resume();
-        httpsGet(res.headers.location).then(resolve, reject);
+        if (maxRedirects <= 0) {
+          reject(new Error('Too many redirects'));
+          return;
+        }
+        httpsGet(res.headers.location, maxRedirects - 1).then(resolve, reject);
         return;
       }
 
@@ -109,6 +113,7 @@ function httpsDownload(
         reject(err);
       });
       res.on('error', (err) => {
+        res.destroy();
         fileStream.close();
         fs.unlink(destPath).catch(() => {});
         reject(err);
@@ -168,10 +173,14 @@ export async function fetchModDetails(modName: string): Promise<PortalModFull> {
 
 // ---- Download + Install ----
 
-async function verifySha1(filePath: string, expectedSha1: string): Promise<boolean> {
-  const content = await fs.readFile(filePath);
-  const actual = crypto.createHash('sha1').update(content).digest('hex');
-  return actual === expectedSha1;
+function verifySha1(filePath: string, expectedSha1: string): Promise<boolean> {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha1');
+    const stream = createReadStream(filePath);
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex') === expectedSha1));
+    stream.on('error', reject);
+  });
 }
 
 export async function downloadMod(

@@ -101,6 +101,16 @@ export function registerServerIpc(): void {
     }
   });
 
+  // Flush remaining logs immediately when server stops or errors
+  serverProcess.on('statusChange', (status) => {
+    if (status === 'stopped' || status === 'errored') {
+      if (flushTimer) {
+        clearTimeout(flushTimer);
+      }
+      flushLogs();
+    }
+  });
+
   serverProcess.on('autoRestart', (info: AutoRestartInfo | null) => {
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send(IPC.SERVER_AUTO_RESTART, info);

@@ -21,10 +21,11 @@ export function registerSavesIpc(): void {
   });
 
   ipcMain.handle(IPC.SAVES_CREATE, async (_, name: string, factorioPath: string, savesDir?: string) => {
-    if (!/^[\w\s\-().]+$/.test(name)) {
+    const trimmed = name.trim().replace(/[.\s]+$/, '');
+    if (!trimmed || !/^[\w\s\-().]+$/.test(trimmed)) {
       throw new Error('Invalid save name: only letters, numbers, spaces, hyphens, dots, and parentheses are allowed');
     }
-    return createSave(factorioPath, name, savesDir);
+    return createSave(factorioPath, trimmed, savesDir);
   });
 
   ipcMain.handle(IPC.SAVES_DELETE, async (_, filePath: string) => {

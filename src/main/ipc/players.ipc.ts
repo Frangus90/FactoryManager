@@ -4,41 +4,48 @@ import { IPC } from '../../shared/ipc-channels';
 import { readJsonList, writeJsonList, readBanList, writeBanList } from '../services/player-manager';
 import type { BanEntry } from '../../shared/types';
 
-function assertJsonFile(filePath: string): void {
+const ALLOWED_PLAYER_FILES = new Set([
+  'server-adminlist.json',
+  'server-banlist.json',
+  'server-whitelist.json',
+]);
+
+function assertAllowedPlayerFile(filePath: string): void {
   const resolved = path.resolve(filePath);
-  if (!resolved.endsWith('.json')) {
-    throw new Error('Invalid path: must be a .json file');
+  const baseName = path.basename(resolved);
+  if (!ALLOWED_PLAYER_FILES.has(baseName)) {
+    throw new Error(`Invalid path: unexpected file name "${baseName}"`);
   }
 }
 
 export function registerPlayersIpc(): void {
   ipcMain.handle(IPC.PLAYERS_GET_ADMIN_LIST, async (_, filePath: string) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return readJsonList(filePath);
   });
 
   ipcMain.handle(IPC.PLAYERS_SET_ADMIN_LIST, async (_, filePath: string, names: string[]) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return writeJsonList(filePath, names);
   });
 
   ipcMain.handle(IPC.PLAYERS_GET_BAN_LIST, async (_, filePath: string) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return readBanList(filePath);
   });
 
   ipcMain.handle(IPC.PLAYERS_SET_BAN_LIST, async (_, filePath: string, entries: BanEntry[]) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return writeBanList(filePath, entries);
   });
 
   ipcMain.handle(IPC.PLAYERS_GET_WHITELIST, async (_, filePath: string) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return readJsonList(filePath);
   });
 
   ipcMain.handle(IPC.PLAYERS_SET_WHITELIST, async (_, filePath: string, names: string[]) => {
-    assertJsonFile(filePath);
+    assertAllowedPlayerFile(filePath);
     return writeJsonList(filePath, names);
   });
 }

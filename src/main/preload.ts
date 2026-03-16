@@ -189,6 +189,15 @@ const api = {
     update: (partial: Partial<AppSettings>): Promise<AppSettings> =>
       ipcRenderer.invoke(IPC.APP_SETTINGS_UPDATE, partial),
   },
+
+  window: {
+    minimize: (): void => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
+    maximize: (): void => ipcRenderer.send(IPC.WINDOW_MAXIMIZE),
+    close: (): void => ipcRenderer.send(IPC.WINDOW_CLOSE),
+    isMaximized: (): Promise<boolean> => ipcRenderer.invoke(IPC.WINDOW_IS_MAXIMIZED),
+    onMaximizeChange: (cb: (maximized: boolean) => void): UnsubscribeFn =>
+      onEvent(IPC.WINDOW_MAXIMIZE_CHANGE, cb),
+  },
 };
 
 contextBridge.exposeInMainWorld('electronAPI', api);

@@ -26,8 +26,8 @@ export function getProfile(id: string): ServerProfile | undefined {
 
 export function createProfile(data: Omit<ServerProfile, 'id'>): ServerProfile {
   const profile: ServerProfile = {
-    id: crypto.randomUUID(),
     ...data,
+    id: crypto.randomUUID(),
   };
   const profiles = store.get('profiles');
   profiles.push(profile);
