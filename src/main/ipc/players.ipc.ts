@@ -1,7 +1,8 @@
 import path from 'path';
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import { IPC } from '../../shared/ipc-channels';
 import { readJsonList, writeJsonList, readBanList, writeBanList } from '../services/player-manager';
+import { APPDATA_FACTORIO_PATH } from '../util/constants';
 import type { BanEntry } from '../../shared/types';
 
 const ALLOWED_PLAYER_FILES = new Set([
@@ -15,6 +16,14 @@ function assertAllowedPlayerFile(filePath: string): void {
   const baseName = path.basename(resolved);
   if (!ALLOWED_PLAYER_FILES.has(baseName)) {
     throw new Error(`Invalid path: unexpected file name "${baseName}"`);
+  }
+  const dir = path.dirname(resolved);
+  const allowedDirs = [
+    path.resolve(APPDATA_FACTORIO_PATH),
+    path.resolve(app.getPath('userData'), 'server-data'),
+  ];
+  if (!allowedDirs.some(d => dir.startsWith(d + path.sep) || dir === d)) {
+    throw new Error('Player file is outside allowed directories');
   }
 }
 

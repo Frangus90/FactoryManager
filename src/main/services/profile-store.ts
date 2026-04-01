@@ -2,6 +2,7 @@ import Store from 'electron-store';
 import crypto from 'crypto';
 import type { ServerProfile } from '../../shared/types';
 import { DEFAULT_RCON_PORT, DEFAULT_SERVER_PORT, generateRconPassword } from '../util/constants';
+import { encrypt, decrypt } from '../util/safe-storage';
 
 interface StoreSchema {
   profiles: ServerProfile[];
@@ -16,12 +17,21 @@ const store = new Store<StoreSchema>({
   },
 });
 
+function encryptProfile(profile: ServerProfile): ServerProfile {
+  return { ...profile, rconPassword: encrypt(profile.rconPassword) };
+}
+
+function decryptProfile(profile: ServerProfile): ServerProfile {
+  return { ...profile, rconPassword: decrypt(profile.rconPassword) };
+}
+
 export function listProfiles(): ServerProfile[] {
-  return store.get('profiles');
+  return store.get('profiles').map(decryptProfile);
 }
 
 export function getProfile(id: string): ServerProfile | undefined {
-  return store.get('profiles').find((p) => p.id === id);
+  const profile = store.get('profiles').find((p) => p.id === id);
+  return profile ? decryptProfile(profile) : undefined;
 }
 
 export function createProfile(data: Omit<ServerProfile, 'id'>): ServerProfile {
@@ -30,7 +40,7 @@ export function createProfile(data: Omit<ServerProfile, 'id'>): ServerProfile {
     id: crypto.randomUUID(),
   };
   const profiles = store.get('profiles');
-  profiles.push(profile);
+  profiles.push(encryptProfile(profile));
   store.set('profiles', profiles);
   if (!store.get('activeProfileId')) {
     store.set('activeProfileId', profile.id);
@@ -42,9 +52,10 @@ export function updateProfile(id: string, updates: Partial<Omit<ServerProfile, '
   const profiles = store.get('profiles');
   const index = profiles.findIndex((p) => p.id === id);
   if (index === -1) return null;
-  profiles[index] = { ...profiles[index], ...updates, id };
+  const merged = { ...decryptProfile(profiles[index]), ...updates, id };
+  profiles[index] = encryptProfile(merged);
   store.set('profiles', profiles);
-  return profiles[index];
+  return merged;
 }
 
 export function deleteProfile(id: string): boolean {

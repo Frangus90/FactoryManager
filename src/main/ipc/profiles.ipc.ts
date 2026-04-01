@@ -19,8 +19,15 @@ function getFactorioVersion(factorioPath: string): Promise<string | null> {
   if (cached) return Promise.resolve(cached);
 
   const exePath = path.join(factorioPath, FACTORIO_EXE_RELATIVE);
+  const resolvedExe = path.resolve(exePath);
+  if (path.basename(resolvedExe) !== 'factorio.exe') {
+    return Promise.resolve(null);
+  }
+  if (!fs.existsSync(resolvedExe)) {
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
-    execFile(exePath, ['--version'], { timeout: 10_000 }, (err, stdout) => {
+    execFile(resolvedExe, ['--version'], { timeout: 10_000 }, (err, stdout) => {
       if (err) { resolve(null); return; }
       // Output: "Version: 2.0.28 (build 74355, win64, steam)"
       const match = stdout.match(/Version:\s*(\S+)/);
@@ -172,7 +179,13 @@ export function registerProfileIpc(): void {
     if (!parsed.name || !parsed.factorioPath) {
       throw new Error('Invalid profile: missing name or factorioPath');
     }
-    // Merge with defaults to fill missing fields from older exports
+    // Explicitly pick known fields — reject unexpected properties
+    const KNOWN_FIELDS = [
+      'name', 'factorioPath', 'selectedSave', 'useLatestSave',
+      'rconPort', 'rconPassword', 'serverPort',
+      'serverSettingsPath', 'adminListPath', 'banListPath', 'whitelistPath',
+      'autoRestart', 'restartSchedule', 'scheduledCommands',
+    ] as const;
     const defaults: Omit<ServerProfile, 'id'> = {
       name: '',
       factorioPath: '',
@@ -189,8 +202,11 @@ export function registerProfileIpc(): void {
       restartSchedule: { type: 'off', intervalHours: 6, dailyTime: '04:00' },
       scheduledCommands: [],
     };
-    const { id: _id, ...rest } = parsed as Record<string, unknown> & { id?: string };
-    const data = { ...defaults, ...rest } as Omit<ServerProfile, 'id'>;
+    const picked: Record<string, unknown> = {};
+    for (const key of KNOWN_FIELDS) {
+      if (key in parsed) picked[key] = parsed[key];
+    }
+    const data = { ...defaults, ...picked } as Omit<ServerProfile, 'id'>;
     return profileStore.createProfile(data);
   });
 

@@ -3,6 +3,7 @@ import path from 'path';
 import Store from 'electron-store';
 import type { ModPortalAuth } from '../../shared/types';
 import { APPDATA_FACTORIO_PATH } from '../util/constants';
+import { encrypt, decrypt } from '../util/safe-storage';
 
 const PLAYER_DATA_FILE = 'player-data.json';
 
@@ -38,14 +39,14 @@ export async function getCredentials(): Promise<ModPortalAuth | null> {
 
   // Try manual credentials first (user explicitly set these)
   const manual = store.get('modPortalAuth');
-  if (manual) return manual;
+  if (manual) return { username: manual.username, token: decrypt(manual.token) };
 
   // Fall back to auto-detect from game files
   return readPlayerData();
 }
 
 export function setManualCredentials(username: string, token: string): void {
-  store.set('modPortalAuth', { username, token });
+  store.set('modPortalAuth', { username, token: encrypt(token) });
   store.set('authDisabled', false);
 }
 

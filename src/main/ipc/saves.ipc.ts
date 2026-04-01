@@ -17,6 +17,7 @@ function assertWithinDir(filePath: string, allowedDir: string): void {
 
 export function registerSavesIpc(): void {
   ipcMain.handle(IPC.SAVES_LIST, async (_, savesDir: string) => {
+    assertWithinDir(savesDir, SERVER_SAVES_DIR());
     return listSaves(savesDir);
   });
 
@@ -44,6 +45,9 @@ export function registerSavesIpc(): void {
   });
 
   ipcMain.handle(IPC.SAVES_IMPORT, async (_, sourcePath: string, overwrite?: boolean) => {
+    if (!sourcePath.toLowerCase().endsWith('.zip')) {
+      throw new Error('Only .zip save files can be imported');
+    }
     return importSave(sourcePath, SERVER_SAVES_DIR(), overwrite);
   });
 }

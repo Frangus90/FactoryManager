@@ -245,15 +245,17 @@ async function doDownload(
     return finalPath;
   } catch (err) {
     await fs.unlink(tempPath).catch(() => {});
-    if ((err as Error).message !== 'SHA1 verification failed') {
+    const rawMessage = (err as Error).message ?? 'Unknown error';
+    const safeMessage = rawMessage.replace(/[?&]token=[^&\s]*/gi, '&token=[REDACTED]');
+    if (safeMessage !== 'SHA1 verification failed') {
       sendProgress({
         modName,
         phase: 'error',
         percent: 0,
-        error: (err as Error).message,
+        error: safeMessage,
       });
     }
-    throw err;
+    throw new Error(safeMessage);
   }
 }
 
