@@ -10,6 +10,7 @@ const config: ForgeConfig = {
     asar: true,
     name: 'FactoryManager',
     icon: './assets/icon',
+    extraResource: ['./assets'],
   },
   rebuildConfig: {},
   makers: [

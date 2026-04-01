@@ -36,7 +36,11 @@ let isQuitting = false;
 
 function getIconPath(): string {
   const ext = process.platform === 'win32' ? 'icon.ico' : 'icon.png';
-  return path.join(app.getAppPath(), 'assets', ext);
+  // In production, assets are in resources/ via extraResource; in dev, they're at project root
+  const assetsDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'assets')
+    : path.join(app.getAppPath(), 'assets');
+  return path.join(assetsDir, ext);
 }
 
 function createTrayIcon(): Electron.NativeImage {
