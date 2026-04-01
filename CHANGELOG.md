@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 1.1.1 01.04.2026
 
 ### Added
+
 - App icon for window, tray, and Windows installer
 - Map settings integrated into save creation flow (overlay panel on create)
 - Credential encryption at rest via Electron `safeStorage` (DPAPI on Windows)
@@ -10,16 +11,19 @@
 - Token redaction in mod portal error messages
 
 ### Changed
+
 - Map settings removed from sidebar; now only accessible when creating a new save
 - Profile import uses strict field allowlist instead of open object spread
 
 ### Fixed
+
 - 12 mod portal bugs: semver update checking, redirect handling, path traversal guard, download concurrency, stale closures, auth clear blocking auto-detect
 - Tray icon uses ICO format on Windows
 - Icon loading in production builds
 - Input validation on all IPC handlers (port ranges, directory scoping, path traversal guards)
 
 ### Security
+
 - RCON host restricted to localhost only
 - Port validation on RCON and UPnP handlers
 - Directory-scoped file access for config and player list operations
@@ -33,6 +37,7 @@
 ## 1.1.0 - 2026-03-15
 
 ### Added
+
 - Mod Portal integration: browse, search, download, and update mods from mods.factorio.com
 - Mod portal authentication (auto-detect from game files or manual entry)
 - Mod update checker with one-click update
@@ -41,6 +46,7 @@
 ## 1.0.0 - 2026-03-14
 
 ### Added
+
 - Server lifecycle management (start/stop state machine)
 - Source RCON protocol client for console commands
 - Multi-profile system with persistent settings
