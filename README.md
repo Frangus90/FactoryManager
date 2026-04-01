@@ -4,6 +4,8 @@ Desktop app for managing a local Factorio dedicated server on Windows. Built wit
 
 Styled to match Factorio's native UI.
 
+![FactoryManager Dashboard](assets/screenshot.png)
+
 ## Features
 
 ### Server Management
